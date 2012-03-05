@@ -1,0 +1,6 @@
+fix-makefile-bugs.patch -p1
+fix-manpages.patch -p1
+hide-library-destructors.patch -p1
+fix-cross-compile.patch -p1
+add-includededir
+fix_FTBFS.patch

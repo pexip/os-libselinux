@@ -1,0 +1,19 @@
+Index: libselinux-2.1.0/src/Makefile
+===================================================================
+--- libselinux-2.1.0.orig/src/Makefile	2012-01-02 18:32:56.000000000 +0900
++++ libselinux-2.1.0/src/Makefile	2012-01-02 18:34:22.806766798 +0900
+@@ -1,3 +1,5 @@
++DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
++
+ # Installation directories.
+ PREFIX ?= $(DESTDIR)/usr
+ LIBDIR ?= $(PREFIX)/lib
+@@ -99,7 +101,7 @@
+ 	$(CC) $(CFLAGS) -I$(PYINC) -fPIC -DSHARED -c -o $@ $<
+ 
+ $(AUDIT2WHYSO): audit2why.lo
+-	$(CC) $(CFLAGS) $(LDFLAGS) -shared -o $@ $^ -L. -lselinux $(LIBSEPOLDIR)/libsepol.a -L$(LIBDIR) -Wl,-soname,$@
++	$(CC) $(CFLAGS) $(LDFLAGS) -shared -o $@ $^ -L. -lselinux $(LIBSEPOLDIR)/$(DEB_HOST_MULTIARCH)/libsepol.a -L$(LIBDIR) -Wl,-soname,$@
+ 
+ %.o:  %.c policy.h
+ 	$(CC) $(CFLAGS) $(TLSFLAGS) -c -o $@ $<
