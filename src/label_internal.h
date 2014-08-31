@@ -25,6 +25,8 @@ int selabel_x_init(struct selabel_handle *rec, struct selinux_opt *opts,
 		   unsigned nopts) hidden;
 int selabel_db_init(struct selabel_handle *rec,
 		    struct selinux_opt *opts, unsigned nopts) hidden;
+int selabel_property_init(struct selabel_handle *rec,
+			  struct selinux_opt *opts, unsigned nopts) hidden;
 
 /*
  * Labeling internal structures
@@ -36,9 +38,12 @@ struct selabel_sub {
 	struct selabel_sub *next;
 };
 
+extern struct selabel_sub *selabel_subs_init(const char *path,
+					     struct selabel_sub *list);
+
 struct selabel_lookup_rec {
-	security_context_t ctx_raw;
-	security_context_t ctx_trans;
+	char * ctx_raw;
+	char * ctx_trans;
 	int validated;
 };
 
@@ -56,7 +61,14 @@ struct selabel_handle {
 	/* supports backend-specific state information */
 	void *data;
 
+	/*
+	 * The main spec file used. Note for file contexts the local and/or
+	 * homedirs could also have been used to resolve a context.
+	 */
+	char *spec_file;
+
 	/* substitution support */
+	struct selabel_sub *dist_subs;
 	struct selabel_sub *subs;
 };
 

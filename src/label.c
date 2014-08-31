@@ -24,6 +24,7 @@ static selabel_initfunc initfuncs[] = {
 	&selabel_media_init,
 	&selabel_x_init,
 	&selabel_db_init,
+	&selabel_property_init,
 };
 
 static void selabel_subs_fini(struct selabel_sub *ptr)
@@ -42,12 +43,19 @@ static void selabel_subs_fini(struct selabel_sub *ptr)
 static char *selabel_sub(struct selabel_sub *ptr, const char *src)
 {
 	char *dst = NULL;
+	int len;
 
 	while (ptr) {
 		if (strncmp(src, ptr->src, ptr->slen) == 0 ) {
 			if (src[ptr->slen] == '/' || 
 			    src[ptr->slen] == 0) {
-				asprintf(&dst, "%s%s", ptr->dst, &src[ptr->slen]);
+				if ((src[ptr->slen] == '/') &&
+				    (strcmp(ptr->dst, "/") == 0))
+					len = ptr->slen + 1;
+				else
+					len = ptr->slen;
+				if (asprintf(&dst, "%s%s", ptr->dst, &src[len]) < 0)
+					return NULL;
 				return dst;
 			}
 		}
@@ -56,56 +64,64 @@ static char *selabel_sub(struct selabel_sub *ptr, const char *src)
 	return NULL;
 }
 
-static struct selabel_sub *selabel_subs_init(const char *path,struct selabel_sub *list)
+struct selabel_sub *selabel_subs_init(const char *path, struct selabel_sub *list)
 {
 	char buf[1024];
 	FILE *cfg = fopen(path, "r");
 	struct selabel_sub *sub;
 
-	if (cfg) {
-		while (fgets_unlocked(buf, sizeof(buf) - 1, cfg)) {
-			char *ptr = NULL;
-			char *src = buf;
-			char *dst = NULL;
+	if (!cfg)
+		return list;
 
-			while (*src && isspace(*src))
-				src++;
-			if (src[0] == '#') continue;
-			ptr = src;
-			while (*ptr && ! isspace(*ptr))
-				ptr++;
-			*ptr++ = 0;
-			if (! *src) continue;
+	while (fgets_unlocked(buf, sizeof(buf) - 1, cfg)) {
+		char *ptr = NULL;
+		char *src = buf;
+		char *dst = NULL;
 
-			dst = ptr;
-			while (*dst && isspace(*dst))
-				dst++;
-			ptr=dst;
-			while (*ptr && ! isspace(*ptr))
-				ptr++;
-			*ptr=0;
-			if (! *dst) continue;
+		while (*src && isspace(*src))
+			src++;
+		if (src[0] == '#') continue;
+		ptr = src;
+		while (*ptr && ! isspace(*ptr))
+			ptr++;
+		*ptr++ = '\0';
+		if (! *src) continue;
 
-			sub = malloc(sizeof(struct selabel_sub));
-			if (! sub) return list;
-			sub->src=strdup(src);
-			if (! sub->src) {
-				free(sub);
-				return list;
-			}
-			sub->dst=strdup(dst);
-			if (! sub->dst) {
-				free(sub->src);
-				free(sub);
-				return list;
-			}
-			sub->slen = strlen(src);
-			sub->next = list;
-			list = sub;
-		}
-		fclose(cfg);
+		dst = ptr;
+		while (*dst && isspace(*dst))
+			dst++;
+		ptr=dst;
+		while (*ptr && ! isspace(*ptr))
+			ptr++;
+		*ptr='\0';
+		if (! *dst)
+			continue;
+
+		sub = malloc(sizeof(*sub));
+		if (! sub)
+			goto err;
+		memset(sub, 0, sizeof(*sub));
+
+		sub->src=strdup(src);
+		if (! sub->src)
+			goto err;
+
+		sub->dst=strdup(dst);
+		if (! sub->dst)
+			goto err;
+
+		sub->slen = strlen(src);
+		sub->next = list;
+		list = sub;
 	}
+out:
+	fclose(cfg);
 	return list;
+err:
+	if (sub)
+		free(sub->src);
+	free(sub);
+	goto out;
 }
 
 /*
@@ -161,8 +177,7 @@ struct selabel_handle *selabel_open(unsigned int backend,
 	rec->validating = selabel_is_validate_set(opts, nopts);
 
 	rec->subs = NULL;
-	rec->subs = selabel_subs_init(selinux_file_context_subs_dist_path(), rec->subs);
-	rec->subs = selabel_subs_init(selinux_file_context_subs_path(), rec->subs);
+	rec->dist_subs = NULL;
 
 	if ((*initfuncs[backend])(rec, opts, nopts)) {
 		free(rec);
@@ -178,7 +193,24 @@ selabel_lookup_common(struct selabel_handle *rec, int translating,
 		      const char *key, int type)
 {
 	struct selabel_lookup_rec *lr;
-	char *ptr = selabel_sub(rec->subs, key);
+	char *ptr = NULL;
+	char *dptr = NULL;
+
+	if (key == NULL) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	ptr = selabel_sub(rec->subs, key);
+	if (ptr) {
+		dptr = selabel_sub(rec->dist_subs, ptr);
+		if (dptr) {
+			free(ptr);
+			ptr = dptr;
+		}
+	} else {
+		ptr = selabel_sub(rec->dist_subs, key);
+	}
 	if (ptr) {
 		lr = rec->func_lookup(rec, ptr, type); 
 		free(ptr);
@@ -188,7 +220,7 @@ selabel_lookup_common(struct selabel_handle *rec, int translating,
 	if (!lr)
 		return NULL;
 
-	if (compat_validate(rec, lr, "file_contexts", 0))
+	if (compat_validate(rec, lr, rec->spec_file, 0))
 		return NULL;
 
 	if (translating && !lr->ctx_trans &&
@@ -198,7 +230,7 @@ selabel_lookup_common(struct selabel_handle *rec, int translating,
 	return lr;
 }
 
-int selabel_lookup(struct selabel_handle *rec, security_context_t *con,
+int selabel_lookup(struct selabel_handle *rec, char **con,
 		   const char *key, int type)
 {
 	struct selabel_lookup_rec *lr;
@@ -211,7 +243,7 @@ int selabel_lookup(struct selabel_handle *rec, security_context_t *con,
 	return *con ? 0 : -1;
 }
 
-int selabel_lookup_raw(struct selabel_handle *rec, security_context_t *con,
+int selabel_lookup_raw(struct selabel_handle *rec, char **con,
 		       const char *key, int type)
 {
 	struct selabel_lookup_rec *lr;
@@ -227,7 +259,9 @@ int selabel_lookup_raw(struct selabel_handle *rec, security_context_t *con,
 void selabel_close(struct selabel_handle *rec)
 {
 	selabel_subs_fini(rec->subs);
+	selabel_subs_fini(rec->dist_subs);
 	rec->func_close(rec);
+	free(rec->spec_file);
 	free(rec);
 }
 
