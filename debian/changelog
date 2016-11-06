@@ -1,3 +1,103 @@
+libselinux (2.6-3) unstable; urgency=medium
+
+  * Team upload.
+  [ Christian Seiler ]
+  * Add libselinux1-udeb (depended on by libmount1-udeb) (Closes: #835503)
+
+ -- Laurent Bigonville <bigon@debian.org>  Sun, 06 Nov 2016 18:22:28 +0100
+
+libselinux (2.6-2) unstable; urgency=medium
+
+  * Team upload.
+  * Fix python binding under python3, some strings were represented as arrays
+    of bytes instead of python strings
+
+ -- Laurent Bigonville <bigon@debian.org>  Sun, 06 Nov 2016 13:52:19 +0100
+
+libselinux (2.6-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release
+    - Bump libsepol1-dev build-dependency to >= 2.6 to match the release
+    - Make the build reproducible (Closes: #825655)
+    - Drop 0003-Avoid-mounting-proc-outside-of-selinux_init_load_pol.patch,
+      merged upstream
+    - debian/patches/fix-makefile-bugs.patch,
+      debian/patches/fix-cross-compile.patch: Refreshed
+    - debian/python.mk: Fix python wrapper build
+    - debian/libselinux1.symbols: Adjust the .symbols files, myprintf and
+      obj_class_compat were never part of the public API
+  * debian/libselinux1.symbols: Add the Build-Depends-Package field
+  * debian/gbp.conf: Rename git-buildpackage section to buildpackage
+
+ -- Laurent Bigonville <bigon@debian.org>  Sat, 29 Oct 2016 02:31:28 +0200
+
+libselinux (2.5-3) unstable; urgency=medium
+
+  * Team upload.
+  * Do not try to mount /proc during the libselinux initialization, in some
+    use cases /proc is not mounted at early boot and mounting/unmounting it
+    later might cause race conditions. (Closes: #823184)
+
+ -- Laurent Bigonville <bigon@debian.org>  Tue, 17 May 2016 14:04:22 +0200
+
+libselinux (2.5-2) unstable; urgency=medium
+
+  * Team upload.
+  * d/p/only-mount-procfs-necessary.patch: Only mount /proc if necessary
+    (Closes: #822679)
+
+ -- Laurent Bigonville <bigon@debian.org>  Sat, 30 Apr 2016 11:56:40 +0200
+
+libselinux (2.5-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release
+    - Bump libsepol1-dev build-dependency to >= 2.5 to match the release
+    - debian/patches/fix-makefile-bugs.patch,
+      debian/patches/fix-cross-compile.patch: Refreshed
+    - Mount procfs before checking /proc/filesystems (Closes: #789218)
+    - debian/libselinux1.symbols: Add new exported symbols
+  * debian/gbp.conf: Sign tags by default
+  * debian/control: Bump Standards-Version to 3.9.8 (no further changes)
+  * debian/control: Fix Vcs-* URL's to please lintian (again)
+  * debian/patches/fix-makefile-bugs.patch: Properly cleanup the files in
+    clean-pywrap target, this way we are sure the python module is built with
+    the correct version of python.
+
+ -- Laurent Bigonville <bigon@debian.org>  Mon, 25 Apr 2016 13:18:24 +0200
+
+libselinux (2.4-3) unstable; urgency=medium
+
+  * Team upload.
+  * Upload to unstable
+  * debian/python.mk: Add $(PYTHON3_VERSIONS) to the PHONY target
+
+ -- Laurent Bigonville <bigon@debian.org>  Wed, 18 Nov 2015 18:11:37 +0100
+
+libselinux (2.4-2) experimental; urgency=medium
+
+  * Team upload.
+  * debian/control: Also bump the dependency against libsepol1-dev to 2.4
+  * Start building python 3 packages
+
+ -- Laurent Bigonville <bigon@debian.org>  Fri, 10 Jul 2015 22:02:08 +0200
+
+libselinux (2.4-1) experimental; urgency=medium
+
+  * Team upload.
+  * New upstream release
+    - Bump libsepol1-dev build-dependency to >= 2.4 to match the release
+    - Drop d/p/Add-pcre-version-string.patch,
+      d/p/Log-an-error-on-unknown-classes.patch and
+      d/p/libselinux-man-Add-missing-manpage-links-to-security.patch: Applied
+      upstream.
+    - debian/patches/fix-makefile-bugs.patch: Refreshed
+  * debian/watch: Update watch file URL
+  * debian/control: Bump Standards-Version to 3.9.6 (no further changes)
+
+ -- Laurent Bigonville <bigon@debian.org>  Wed, 03 Jun 2015 08:18:37 +0200
+
 libselinux (2.3-2) unstable; urgency=medium
 
   * Team upload.

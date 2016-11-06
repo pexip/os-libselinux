@@ -105,12 +105,12 @@ process_line(const char *path, char *line_buf, unsigned int line_num,
 	 *   <object class> <object name> <security context>
 	 */
 	type = key = context = temp = NULL;
-	items = sscanf(line_buf, "%as %as %as %as",
+	items = sscanf(line_buf, "%ms %ms %ms %ms",
 		       &type, &key, &context, &temp);
 	if (items != 3) {
 		if (items > 0)
 			selinux_log(SELINUX_WARNING,
-				    "%s:  line %d has invalid format, skipped",
+				    "%s:  line %u has invalid format, skipped",
 				    path, line_num);
 		goto skip;
 	}
@@ -140,9 +140,13 @@ process_line(const char *path, char *line_buf, unsigned int line_num,
 		spec->type = SELABEL_DB_TUPLE;
 	else if (!strcmp(type, "db_language"))
 		spec->type = SELABEL_DB_LANGUAGE;
+	else if (!strcmp(type, "db_exception"))
+		spec->type = SELABEL_DB_EXCEPTION;
+	else if (!strcmp(type, "db_datatype"))
+		spec->type = SELABEL_DB_DATATYPE;
 	else {
 		selinux_log(SELINUX_WARNING,
-			    "%s:  line %d has invalid object type %s\n",
+			    "%s:  line %u has invalid object type %s\n",
 			    path, line_num, type);
 		goto skip;
 	}
@@ -230,7 +234,8 @@ db_stats(struct selabel_handle *rec)
  * selabel_open() handler
  */
 static catalog_t *
-db_init(struct selinux_opt *opts, unsigned nopts, struct selabel_handle *rec)
+db_init(const struct selinux_opt *opts, unsigned nopts,
+			    struct selabel_handle *rec)
 {
 	catalog_t      *catalog;
 	FILE	       *filp;
@@ -239,6 +244,7 @@ db_init(struct selinux_opt *opts, unsigned nopts, struct selabel_handle *rec)
 	size_t		line_len = 0;
 	unsigned int	line_num = 0;
 	unsigned int	i;
+	struct stat sb;
 
 	/*
 	 * Initialize catalog data structure
@@ -275,6 +281,12 @@ db_init(struct selinux_opt *opts, unsigned nopts, struct selabel_handle *rec)
 		free(catalog);
 		return NULL;
 	}
+	if (fstat(fileno(filp), &sb) < 0)
+		return NULL;
+	if (!S_ISREG(sb.st_mode)) {
+		errno = EINVAL;
+		return NULL;
+	}
 	rec->spec_file = strdup(path);
 
 	/*
@@ -307,6 +319,11 @@ db_init(struct selinux_opt *opts, unsigned nopts, struct selabel_handle *rec)
 	}
 	free(line_buf);
 
+	if (digest_add_specfile(rec->digest, filp, NULL, sb.st_size, path) < 0)
+		goto out_error;
+
+	digest_gen_hash(rec->digest);
+
 	fclose(filp);
 
 	return catalog;
@@ -328,7 +345,7 @@ out_error:
  * Initialize selabel_handle and load the entries of specfile
  */
 int selabel_db_init(struct selabel_handle *rec,
-		    struct selinux_opt *opts, unsigned nopts)
+		    const struct selinux_opt *opts, unsigned nopts)
 {
 	rec->func_close = &db_close;
 	rec->func_lookup = &db_lookup;

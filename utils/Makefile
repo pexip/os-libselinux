@@ -3,6 +3,7 @@ PREFIX ?= $(DESTDIR)/usr
 LIBDIR ?= $(PREFIX)/lib
 USRBINDIR ?= $(PREFIX)/sbin
 SBINDIR ?= $(DESTDIR)/sbin
+INCLUDEDIR ?= $(PREFIX)/include
 
 MAX_STACK_SIZE=8192
 CFLAGS ?= -O -Wall -W -Wundef -Wformat-y2k -Wformat-security -Winit-self -Wmissing-include-dirs \
@@ -11,7 +12,7 @@ CFLAGS ?= -O -Wall -W -Wundef -Wformat-y2k -Wformat-security -Winit-self -Wmissi
           -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes \
           -Wmissing-declarations -Wmissing-noreturn -Wmissing-format-attribute \
           -Wredundant-decls -Wnested-externs -Winline -Winvalid-pch -Wvolatile-register-var \
-          -Wdisabled-optimization -Wbuiltin-macro-redefined -Wmudflap -Wpacked-bitfield-compat \
+          -Wdisabled-optimization -Wbuiltin-macro-redefined -Wpacked-bitfield-compat \
           -Wsync-nand -Wattributes -Wcoverage-mismatch -Wmultichar -Wcpp \
           -Wdeprecated-declarations -Wdiv-by-zero -Wdouble-promotion -Wendif-labels -Wextra \
           -Wformat-contains-nul -Wformat-extra-args -Wformat-zero-length -Wformat=2 -Wmultichar \
@@ -23,20 +24,21 @@ CFLAGS ?= -O -Wall -W -Wundef -Wformat-y2k -Wformat-security -Winit-self -Wmissi
           -fasynchronous-unwind-tables -fdiagnostics-show-option -funit-at-a-time \
           -fipa-pure-const -Wno-suggest-attribute=pure -Wno-suggest-attribute=const \
           -Werror -Wno-aggregate-return -Wno-redundant-decls
-override CFLAGS += -I../include -D_GNU_SOURCE $(EMFLAGS)
+override CFLAGS += -I../include -I$(INCLUDEDIR) -D_GNU_SOURCE $(DISABLE_FLAGS) $(PCRE_CFLAGS)
 LDLIBS += -L../src -lselinux -L$(LIBDIR)
+PCRE_LDFLAGS ?= -lpcre
 
+ifeq ($(ANDROID_HOST),y)
+TARGETS=sefcontext_compile
+else
 TARGETS=$(patsubst %.c,%,$(wildcard *.c))
-
-sefcontext_compile: LDLIBS += -lpcre
-
-ifeq ($(DISABLE_AVC),y)
-	UNUSED_TARGETS+=compute_av compute_create compute_member compute_relabel
 endif
-ifeq ($(DISABLE_BOOL),y)
-	UNUSED_TARGETS+=getsebool togglesebool
-endif
-TARGETS:= $(filter-out $(UNUSED_TARGETS), $(TARGETS))
+
+sefcontext_compile: LDLIBS += $(PCRE_LDFLAGS) ../src/libselinux.a -lsepol
+
+sefcontext_compile: sefcontext_compile.o ../src/regex.o
+
+selinux_restorecon: LDLIBS += -lsepol
 
 all: $(TARGETS)
 

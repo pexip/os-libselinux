@@ -1,21 +1,24 @@
 Source: libselinux
-VCS-Git: git://anonscm.debian.org/selinux/libselinux.git
-VCS-Browser: http://anonscm.debian.org/gitweb/?p=selinux/libselinux.git;a=summary
+VCS-Git: https://anonscm.debian.org/git/selinux/libselinux.git
+VCS-Browser: https://anonscm.debian.org/gitweb/?p=selinux/libselinux.git;a=summary
 Priority: optional
 Section: libs
 Maintainer: Debian SELinux maintainers <selinux-devel@lists.alioth.debian.org>
 Uploaders: Manoj Srivastava <srivasta@debian.org>,
            Russell Coker <russell@coker.com.au>
-Standards-Version: 3.9.5
+Standards-Version: 3.9.8
 Build-Depends: debhelper (>= 9),
+               dh-python,
                file,
                gem2deb (>= 0.5.0~),
-               libsepol1-dev (>= 2.3),
+               libsepol1-dev (>= 2.6),
                libpcre3-dev,
                pkg-config,
                python-all-dev (>= 2.6.6-3~),
+               python3-all-dev,
                swig
 X-Python-Version: >= 2.4
+X-Python3-Version: >= 3.2
 XS-Ruby-Versions: all
 Homepage: http://userspace.selinuxproject.org/
 
@@ -61,7 +64,7 @@ Description: SELinux runtime shared libraries
 Package: libselinux1-dev
 Architecture: linux-any
 Depends: libselinux1 (= ${binary:Version}),
-         libsepol1-dev (>= 2.3),
+         libsepol1-dev (>= 2.6),
          libpcre3-dev,
          ${misc:Depends}
 Section: libdevel
@@ -79,6 +82,29 @@ Description: SELinux development headers
  general support for the enforcement of many kinds of mandatory access
  control policies, including those based on the concepts of Type
  Enforcement, Role-based Access Control, and Multi-level Security.
+
+Package: libselinux1-udeb
+Architecture: linux-any
+Section: debian-installer
+Package-Type: udeb
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: SELinux runtime shared libraries
+ This package provides the shared libraries for Security-enhanced
+ Linux that provides interfaces (e.g. library functions for the
+ SELinux kernel APIs like getcon(), other support functions like
+ getseuserbyname()) to SELinux-aware applications. Security-enhanced
+ Linux is a patch of the Linux kernel and a number of utilities with
+ enhanced security functionality designed to add mandatory access
+ controls to Linux.  The Security-enhanced Linux kernel contains new
+ architectural components originally developed to improve the security
+ of the Flask operating system. These architectural components provide
+ general support for the enforcement of many kinds of mandatory access
+ control policies, including those based on the concepts of Type
+ Enforcement, Role-based Access Control, and Multi-level Security.
+ .
+ libselinux1-udeb provides the libselinux shared library for use within
+ the Debian installer. Do not install it on a normal system.
 
 Package: ruby-selinux
 Architecture: linux-any
@@ -104,6 +130,25 @@ Section: python
 Provides: ${python:Provides}
 Description: Python bindings to SELinux shared libraries
  This package provides the Python bindings needed for developing Python
+ SELinux applications.
+ .
+ Security-enhanced Linux is a patch of the Linux kernel and a number
+ of utilities with enhanced security functionality designed to add mandatory
+ access controls to Linux. The Security-enhanced Linux kernel contains
+ new architectural components originally developed to improve the security
+ of the Flask operating system. These architectural components provide
+ general support for the enforcement of many kinds of mandatory access
+ control policies, including those based on the concepts of Type Enforcement,
+ Role-based Access Control, and Multi-level Security.
+
+Package: python3-selinux
+Architecture: linux-any
+Depends: ${misc:Depends}, ${python3:Depends}, ${shlibs:Depends}
+Built-Using: ${Built-Using}
+Section: python
+Provides: ${python3:Provides}
+Description: Python3 bindings to SELinux shared libraries
+ This package provides the Python3 bindings needed for developing Python
  SELinux applications.
  .
  Security-enhanced Linux is a patch of the Linux kernel and a number

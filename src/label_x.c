@@ -46,10 +46,10 @@ static int process_line(const char *path, char *line_buf, int pass,
 	/* Skip comment lines and empty lines. */
 	if (*buf_p == '#' || *buf_p == 0)
 		return 0;
-	items = sscanf(line_buf, "%as %as %as ", &type, &key, &context);
+	items = sscanf(line_buf, "%ms %ms %ms ", &type, &key, &context);
 	if (items < 3) {
 		selinux_log(SELINUX_WARNING,
-			    "%s:  line %d is missing fields, skipping\n", path,
+			    "%s:  line %u is missing fields, skipping\n", path,
 			    lineno);
 		if (items > 0)
 			free(type);
@@ -76,7 +76,7 @@ static int process_line(const char *path, char *line_buf, int pass,
 			data->spec_arr[data->nspec].type = SELABEL_X_POLYSELN;
 		else {
 			selinux_log(SELINUX_WARNING,
-				    "%s:  line %d has invalid object type %s\n",
+				    "%s:  line %u has invalid object type %s\n",
 				    path, lineno, type);
 			return 0;
 		}
@@ -94,7 +94,7 @@ static int process_line(const char *path, char *line_buf, int pass,
 	return 0;
 }
 
-static int init(struct selabel_handle *rec, struct selinux_opt *opts,
+static int init(struct selabel_handle *rec, const struct selinux_opt *opts,
 		unsigned n)
 {
 	FILE *fp;
@@ -163,7 +163,12 @@ static int init(struct selabel_handle *rec, struct selinux_opt *opts,
 	}
 	free(line_buf);
 
-	status = 0;
+	status = digest_add_specfile(rec->digest, fp, NULL, sb.st_size, path);
+	if (status)
+		goto finish;
+
+	digest_gen_hash(rec->digest);
+
 finish:
 	fclose(fp);
 	return status;
@@ -188,7 +193,7 @@ static void close(struct selabel_handle *rec)
 	if (spec_arr)
 	    free(spec_arr);
 
-	memset(data, 0, sizeof(*data));
+	free(data);
 }
 
 static struct selabel_lookup_rec *lookup(struct selabel_handle *rec,
@@ -227,7 +232,7 @@ static void stats(struct selabel_handle *rec)
 		  data->nspec, total);
 }
 
-int selabel_x_init(struct selabel_handle *rec, struct selinux_opt *opts,
+int selabel_x_init(struct selabel_handle *rec, const struct selinux_opt *opts,
 		   unsigned nopts)
 {
 	struct saved_data *data;

@@ -1,3 +1,129 @@
+2.6 2016-10-14
+	* selinux_restorecon: fix realpath logic, from Stephen Smalley.
+	* query for python site-packages dir directly, from Jason Zaman.
+	* versioned ruby pkg-config and query vendorarchdir properly, from Jason Zaman.
+	* Revert 'Set DISABLE_RPM default to y', from Stephen Smalley.
+	* Re-introduce DISABLE_BOOL=y, from William Roberts.
+	* make android label backends configurable, from Janis Danisevskis.
+	* android: fix lax service context lookup, from Janis Danisevskis.
+	* Rename android label backend source file, from Janis Danisevskis.
+	* Add ANDROID_HOST=y build option, from William Roberts.
+	* Set DISABLE_RPM default to y, from William Roberts.
+	* Rename EMFLAGS to DISABLE_FLAGS, from William Roberts.
+	* Fix unused variable error, from William Roberts.
+	* Drop build config EMBEDDED=y, DISABLE_AVC=y and DISABLE_BOOL=y, from William Roberts.
+	* sefcontext_compile: invert semantics of "-r" flag, from Janis Danisevskis.
+	* sefcontext_compile: Add "-i" flag, from Janis Danisevskis.
+	* Add architecture string to file_contexts.bin, from Janis Danisevskis.
+	* sefcontext_compile: do not fail silently, from Stephen Smalley.
+	* Add ifdef'ing for ANDROID and BUILD_HOST, from William Roberts.
+	* Introduce configurable backends, from William Roberts.
+	* Add function to find security.restorecon_last entries, from Richard Haines.
+	* Fix -Wsign-compare warnings, from Nicolas Iooss.
+	* Drop unused stdio_ext.h header file, from William Roberts.
+	* Kill logging check for selinux_enabled(), from William Roberts.
+	* Drop usage of _D_ALLOC_NAMLEN, from William Roberts.
+	* Add openrc_contexts functions, from Jason Zaman.
+	* Fix redefinition of XATTR_NAME_SELINUX, from William Roberts.
+	* sefcontext_compile: cleanup confusing usage message, from Janis Danisevskis.
+	* Correct error path to always try text, from William Roberts.
+	* Add support for pcre2, from Janis Danisevskis.
+	* Clean up process_file(), from William Roberts.
+	* Handle NULL pcre study data, from Stephen Smalley.
+	* Add setfiles support to selinux_restorecon(3), from Richard Haines.
+	* Evaluate inodes in selinux_restorecon(3), from Richard Haines.
+	* Fix in tree compilation of utils that depend on libsepol, from Laurent Bigonville.
+	* Change the location of _selinux.so, from Petr Lautrbach.
+	* Clarify is_selinux_mls_enabled() description, from David King.
+	* Explain how to free policy type from selinux_getpolicytype(), from David King.
+	* Compare absolute pathname in matchpathcon -V, from Petr Lautrbach.
+	* Add selinux_snapperd_contexts_path(), from Petr Lautrbach.
+	* Modify audit2why analyze function to use loaded policy, from Joshua Brindle.
+	* Sort object files for deterministic linking order, from Laurent Bigonville.
+	* Respect CC and PKG_CONFIG environment variable, from Julien Pivotto.
+	* Avoid mounting /proc outside of selinux_init_load_policy(), from Stephen Smalley.
+	* Fix multiple spelling errors, from Laurent Bigonville.
+	* Fix typo in sefcontext_compile.8, from Petr Lautrbach and Milos Malik
+	* Fix location of selinuxfs mount point, from Dan Walsh.
+	* Only mount /proc if necessary, from Stephen Smalley.
+	* procattr: return einval for <= 0 pid args, from Daniel Cashman.
+	* procattr: return error on invalid pid_t input, from Daniel Cashman.
+
+2.5 2016-02-23
+	* selinux_restorecon.3 man page corrections, from Richard Haines.
+	* Add selinux_restorecon function, from Richard Haines.
+	* read_spec_entry: fail on non-ascii, from William Roberts.
+	* Add man information about thread specific functions, from Dan Waslh.
+	* Don't wrap rpm_execcon with DISABLE_RPM with SWIG, from Petr Lautrbach.
+	* Correct line count for property and service context files, from Richard Haines.
+	* Man page warning fixes, from Ville Skyttä.
+	* label_file: fix memory leaks and uninitialized jump, from William Roberts.
+	* Replace selabel_digest hash function, from Richard Haines.
+	* Fix selabel_open(3) services if no digest requested, from Richard Haines.
+	* Add selabel_digest function, from Richard Haines.
+	* Fix parallel build with swig python, from Jason Zaman.
+	* Flush the class/perm string mapping cache on policy reload, from Stephen Smalley.
+	* Fix restorecon when path has no context, from Nir Soffer.
+	* Free memory when processing media and x specfiles, from Richard Haines.
+	* Fix mmap memory release for file labeling, from Richard Haines.
+	* Add explicit dependency for pywrap on selinux.py, from Wenzong Fan.
+	* Add policy context validation to sefcontext_compile, from Richard Haines.
+	* Do not treat an empty file_contexts(.local) as an error, from Stephen Smalley.
+	* Fail hard on invalid property_contexts entries, from Stephen Smalley.
+	* Fail hard on invalid file_contexts entries, from Stephen Smalley.
+	* Support context validation on file_contexts.bin, from Stephen Smalley.
+	* Test for file_contexts.bin format by magic number, from Stephen Smalley.
+	* Add selabel_cmp interface and label_file backend, from Stephen Smalley.
+	* Support specifying file_contexts.bin file path, from Stephen Smalley.
+	* Support file_contexts.bin without file_contexts, from Stephen Smalley.
+	* Simplify procattr cache, from Stephen Smalley.
+	* Use /proc/thread-self when available, from Stephen Smalley.
+	* Add const to selinux_opt for label backends, from Richard Haines.
+	* Fix binary file labels for regexes with metachars, from Richard Haines.
+	* Fix file labels for regexes with metachars, from Jeff Vander Stoep.
+	* Fix if file_contexts not '\n' terminated, from Richard Haines.
+	* Enhance file context support, from Richard Haines.
+	* Fix property processing and cleanup formatting, from Richard Haines.
+	* Add read_spec_entries function to replace sscanf, from Richard Haines.
+	* Support consistent mode size for bin files, from Richard Haines.
+	* Expunge remaining references to flask.h and av_permissions.h, from Stephen Smalley.
+	* Fix more bin file processing core dumps, from Richard Haines.
+	* add selinux_openssh_contexts_path(), from Petr Lautrbach.
+	* setrans_client: minimize overhead when mcstransd is not present, from Stephen Smalley.
+	* Ensure selabel_lookup_best_match links NULL terminated, from Richard Haines.
+	* is_selinux_enabled:  Add /etc/selinux/config test, from Stephen Smalley.
+	* matchpathcon/selabel_file: Fix man pages, from Stephen Smalley.
+	* Fix core dumps with corrupt *.bin files, from Richard Haines.
+	* Add selabel partial and best match APIs, from Richard Haines.
+	* Use os.walk() instead of the deprecated os.path.walk(), from Petr
+	  Lautrbach & Miro Hrončok
+	* is_selinux_enabled(): drop no-policy-loaded test, from Stephen Smalley.
+	* Remove deprecated mudflap option, from Stephen Smalley.
+	* Mount procfs before checking /proc/filesystems, from Ben Shelton.
+	* Fix -Wformat errors with gcc-5.0.0, from Petr Lautrbach.
+	* label_file:  handle newlines in file names, from Nick Kralevich.
+	* getcon.3:  Fix setcon description, from Stephen Smalley.
+	* Fix audit2why error handling if SELinux is disabled, from Stephen Smalley.
+	* pcre_study can return NULL without error, from Stephen Smalley.
+	* Android property backend validation support, from Robert Craig.
+	* Only check SELinux enabled status once in selinux_check_access, from Stephen Smalley.
+
+2.4 2015-02-02
+	* Remove assumption that SHLIBDIR is ../../ relative to LIBDIR, from Steve
+	  Lawrence
+	* Fix bugs found by hardened gcc flags, from Nicolas Iooss.
+	* Set the system to permissive if failing to disable SELinux because
+	  policy has already been loaded, from Will Woods.
+	* Fix type in selinux.8 manpage, from Nicolas Iooss
+	* Add db_exception and db_datatype support to label_db backend, from Artyom
+	  Smirnov
+	* Log an error on unknown classes and permissions, from Stephen Smalley
+	* Add pcre version string to the compiled file_contexts format, from
+	  Stephen Smalley
+	* Deprecate use of flask.h and av_permissions.h, from Stephen Smalley
+	* Compiled file_context files and the original should have the same DAC
+	  permissions, from Dan Walsh
+
 2.3 2014-05-06
 	* Get rid of security_context_t and fix const declarations.
 	* Refactor rpm_execcon() into a new setexecfilecon() from Guillem Jover.

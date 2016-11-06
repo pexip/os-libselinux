@@ -209,11 +209,19 @@ static int __policy_init(const char *init_path)
 			return 1;
 		}
 	} else {
-		fp = fopen(selinux_current_policy_path(), "r");
+		const char *curpolicy = selinux_current_policy_path();
+		if (!curpolicy) {
+			/* SELinux disabled, must use -p option. */
+			snprintf(errormsg, sizeof(errormsg),
+				 "You must specify the -p option with the path to the policy file.\n");
+			PyErr_SetString( PyExc_ValueError, errormsg);
+			return 1;
+		}
+		fp = fopen(curpolicy, "r");
 		if (!fp) {
 			snprintf(errormsg, sizeof(errormsg), 
 				 "unable to open %s:  %s\n",
-				 selinux_current_policy_path(),
+				 curpolicy,
 				 strerror(errno));
 			PyErr_SetString( PyExc_ValueError, errormsg);
 			return 1;
@@ -335,8 +343,8 @@ static PyObject *analyze(PyObject *self __attribute__((unused)) , PyObject *args
 	if (rc < 0)
 		RETURN(BADTCON)
 
-	tclass = string_to_security_class(tclassstr);
-	if (!tclass)
+	rc = sepol_string_to_security_class(tclassstr, &tclass);
+	if (rc < 0)
 		RETURN(BADTCLASS)
 
 	/* Convert the permission list to an AV. */
@@ -357,8 +365,8 @@ static PyObject *analyze(PyObject *self __attribute__((unused)) , PyObject *args
 		permstr = PyString_AsString( strObj );
 #endif
 		
-		perm = string_to_av_perm(tclass, permstr);
-		if (!perm)
+		rc = sepol_string_to_av_perm(tclass, permstr, &perm);
+		if (rc < 0)
 			RETURN(BADPERM)
 
 		av |= perm;
