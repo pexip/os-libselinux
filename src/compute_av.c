@@ -10,8 +10,8 @@
 #include "policy.h"
 #include "mapping.h"
 
-int security_compute_av_flags_raw(const security_context_t scon,
-				  const security_context_t tcon,
+int security_compute_av_flags_raw(const char * scon,
+				  const char * tcon,
 				  security_class_t tclass,
 				  access_vector_t requested,
 				  struct av_decision *avd)
@@ -60,7 +60,9 @@ int security_compute_av_flags_raw(const security_context_t scon,
 	} else if (ret < 6)
 		avd->flags = 0;
 
-	map_decision(tclass, avd);
+	/* If tclass invalid, kernel sets avd according to deny_unknown flag */
+	if (tclass != 0)
+		map_decision(tclass, avd);
 
 	ret = 0;
       out2:
@@ -72,8 +74,8 @@ int security_compute_av_flags_raw(const security_context_t scon,
 
 hidden_def(security_compute_av_flags_raw)
 
-int security_compute_av_raw(const security_context_t scon,
-			    const security_context_t tcon,
+int security_compute_av_raw(const char * scon,
+			    const char * tcon,
 			    security_class_t tclass,
 			    access_vector_t requested,
 			    struct av_decision *avd)
@@ -99,14 +101,14 @@ int security_compute_av_raw(const security_context_t scon,
 
 hidden_def(security_compute_av_raw)
 
-int security_compute_av_flags(const security_context_t scon,
-			      const security_context_t tcon,
+int security_compute_av_flags(const char * scon,
+			      const char * tcon,
 			      security_class_t tclass,
 			      access_vector_t requested,
 			      struct av_decision *avd)
 {
-	security_context_t rscon;
-	security_context_t rtcon;
+	char * rscon;
+	char * rtcon;
 	int ret;
 
 	if (selinux_trans_to_raw_context(scon, &rscon))
@@ -126,8 +128,8 @@ int security_compute_av_flags(const security_context_t scon,
 
 hidden_def(security_compute_av_flags)
 
-int security_compute_av(const security_context_t scon,
-			const security_context_t tcon,
+int security_compute_av(const char * scon,
+			const char * tcon,
 			security_class_t tclass,
 			access_vector_t requested, struct av_decision *avd)
 {

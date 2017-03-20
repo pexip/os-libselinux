@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "get_default_type_internal.h"
+#include <errno.h>
 
 static int find_default_type(FILE * fp, const char *role, char **type);
 
@@ -26,14 +27,17 @@ int get_default_type(const char *role, char **type)
 static int find_default_type(FILE * fp, const char *role, char **type)
 {
 	char buf[250];
-	char *ptr = "", *end, *t;
+	const char *ptr = "", *end;
+	char *t;
 	size_t len;
 	int found = 0;
 
 	len = strlen(role);
 	while (!feof_unlocked(fp)) {
-		if (!fgets_unlocked(buf, sizeof buf, fp))
+		if (!fgets_unlocked(buf, sizeof buf, fp)) {
+			errno = EINVAL;
 			return -1;
+		}
 		if (buf[strlen(buf) - 1])
 			buf[strlen(buf) - 1] = 0;
 
@@ -53,8 +57,10 @@ static int find_default_type(FILE * fp, const char *role, char **type)
 		}
 	}
 
-	if (!found)
+	if (!found) {
+		errno = EINVAL;
 		return -1;
+	}
 
 	t = malloc(strlen(buf) - len);
 	if (!t)
