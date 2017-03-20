@@ -1,15 +1,65 @@
+/*-*- Mode: C; c-basic-offset: 8; indent-tabs-mode: nil -*-*/
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdlib.h>
 #include <errno.h>
 #include "selinux_internal.h"
 #include <selinux/flask.h>
+#include <selinux/avc.h>
 #include <selinux/av_permissions.h>
+
+static pthread_once_t once = PTHREAD_ONCE_INIT;
+
+static void avc_init_once(void)
+{
+	avc_open(NULL, 0);
+}
+
+int selinux_check_access(const char *scon, const char *tcon, const char *class, const char *perm, void *aux) {
+	int rc;
+	security_id_t scon_id;
+	security_id_t tcon_id;
+	security_class_t sclass;
+	access_vector_t av;
+
+	if (is_selinux_enabled() == 0)
+		return 0;
+
+	__selinux_once(once, avc_init_once);
+
+	rc = avc_context_to_sid(scon, &scon_id);
+	if (rc < 0)
+		return rc;
+
+       rc = avc_context_to_sid(tcon, &tcon_id);
+       if (rc < 0)
+	       return rc;
+
+       sclass = string_to_security_class(class);
+       if (sclass == 0) {
+	       rc = errno;
+	       if (security_deny_unknown() == 0)
+		       return 0;
+	       errno = rc;
+	       return -1;
+       }
+
+       av = string_to_av_perm(sclass, perm);
+       if (av == 0) {
+	       rc = errno;
+	       if (security_deny_unknown() == 0)
+		       return 0;
+	       errno = rc;
+	       return -1;
+       }
+
+       return avc_has_perm (scon_id, tcon_id, sclass, av, NULL, aux);
+}
 
 int selinux_check_passwd_access(access_vector_t requested)
 {
 	int status = -1;
-	security_context_t user_context;
+	char *user_context;
 	if (is_selinux_enabled() == 0)
 		return 0;
 	if (getprevcon_raw(&user_context) == 0) {

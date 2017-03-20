@@ -1,17 +1,24 @@
 Source: libselinux
-VCS-Git: git://git.debian.org/~srivasta/debian/libselinux.git
-VCS-Browser: http://git.debian.org/git/?p=users/srivasta/debian/libselinux.git
+VCS-Git: git://anonscm.debian.org/selinux/libselinux.git
+VCS-Browser: http://anonscm.debian.org/gitweb/?p=selinux/libselinux.git;a=summary
 Priority: optional
 Section: libs
 Maintainer: Pexip AS <packaging@pexip.com>
-XSBC-Pexip-Original-Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
-XSBC-Original-Maintainer: Russell Coker <russell@coker.com.au>
-XSBC-Pexip-Original-Uploaders: Manoj Srivastava <srivasta@debian.org>
-Standards-Version: 3.9.2
-Build-Depends: file, libsepol1-dev (>= 2.1.0), python-all-dev (>= 2.6.6-3~),
-               swig, gem2deb (>= 0.2.7~), pkg-config, debhelper (>= 8.1.3~)
+XSBC-Pexip-Original-Maintainer: Debian SELinux maintainers <selinux-devel@lists.alioth.debian.org>
+XSBC-Pexip-Original-Uploaders: Manoj Srivastava <srivasta@debian.org>,
+           Russell Coker <russell@coker.com.au>
+Standards-Version: 3.9.5
+Build-Depends: debhelper (>= 9),
+               file,
+               gem2deb (>= 0.5.0~),
+               libsepol1-dev (>= 2.3),
+               libpcre3-dev,
+               pkg-config,
+               python-all-dev (>= 2.6.6-3~),
+               swig
 X-Python-Version: >= 2.4
-XS-Ruby-Versions: ruby1.8 ruby1.9.1
+XS-Ruby-Versions: all
+Homepage: http://userspace.selinuxproject.org/
 XS-Pexip-Upstream: http://ftp.debian.org/debian/ jessie
 
 Package: selinux-utils
@@ -53,12 +60,14 @@ Description: SELinux runtime shared libraries
  policy if necessary (e.g. to downgrade the policy format to an older
  version supported by the kernel) when loading policy.
 
-
 Package: libselinux1-dev
 Architecture: linux-any
-Depends: ${misc:Depends}, libselinux1 (= ${binary:Version}),
- libsepol1-dev (>= 1.12)
+Depends: libselinux1 (= ${binary:Version}),
+         libsepol1-dev (>= 2.3),
+         libpcre3-dev,
+         ${misc:Depends}
 Section: libdevel
+Multi-Arch: same
 Provides: libselinux-dev
 Conflicts: libselinux-dev
 Description: SELinux development headers
@@ -73,14 +82,10 @@ Description: SELinux development headers
  control policies, including those based on the concepts of Type
  Enforcement, Role-based Access Control, and Multi-level Security.
 
-
 Package: ruby-selinux
 Architecture: linux-any
-Depends: ${misc:Depends}, ${shlibs:Depends}, ruby | ruby-interpreter
+Depends: ruby | ruby-interpreter, ${misc:Depends}, ${shlibs:Depends}
 Section: ruby
-Conflicts: libselinux-ruby1.8 (<= 2.1.0-1)
-Replaces: libselinux-ruby1.8 (<= 2.1.0-1)
-Provides: libselinx-ruby1.8
 Description: Ruby bindings to SELinux shared libraries
  This package provides the Ruby bindings needed for developing Ruby
  SELinux applications.  Security-enhanced Linux is a patch of the
@@ -93,20 +98,11 @@ Description: Ruby bindings to SELinux shared libraries
  policies, including those based on the concepts of Type Enforcement,
  Role-based Access Control, and Multi-level Security.
 
-Package: libselinux-ruby1.8
-Section: oldlibs
-Architecture: all
-Depends: ${misc:Depends}, ruby-selinux
-Description: Transitional package for ruby-selinux
- This is a transitional package to ease upgrades to the ruby-selinux
- package.  It can be safely removed when nothing else depends on it.
-
 Package: python-selinux
 Architecture: linux-any
-Depends: ${misc:Depends}, ${shlibs:Depends}, ${python:Depends}
+Depends: ${misc:Depends}, ${python:Depends}, ${shlibs:Depends}
+Built-Using: ${Built-Using}
 Section: python
-Conflicts: python2.4-selinux (<= 1.30-1), libselinux-dev (<= 1.28-1)
-Replaces: python2.4-selinux, libselinux-dev
 Provides: ${python:Provides}
 Description: Python bindings to SELinux shared libraries
  This package provides the Python bindings needed for developing Python
