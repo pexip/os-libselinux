@@ -1,3 +1,62 @@
+libselinux (2.8-1) unstable; urgency=medium
+
+  * New upstream release
+    - Bump libsepol1-dev build-dependency to >= 2.8 to match the release
+  * debian/control: Update the VCS-* fields now that we have migrated to
+    gitlab/salsa machine
+  * debian/rules: Adjust to match upstream changes to the build system
+  * debian/control: Downgrade libselinux1 to Priority: optional
+  * debian/copyright: Fix a spelling error, thanks to lintian
+  * debian/rules: Use ?= instead of := to assig the dpkg architecture
+    variables, thanks to lintian
+  * debian/control: Remove X-Python(3)-Version fields as the required version
+    is already in oldstable, to please lintian
+  * debian/rules: Use dh_missing --fail-missing instead of dh_install
+  * debian/control: Bump Standards-Version to 4.1.4 (no further changes)
+  * debian/rules: Pass -V to dh_makeshlibs to ensure the udeb file has a
+    minimal version set
+
+ -- Laurent Bigonville <bigon@debian.org>  Mon, 28 May 2018 20:50:31 +0200
+
+libselinux (2.7-2) unstable; urgency=medium
+
+  [ Helmut Grohne ]
+  * Fix FTCBFS: Add the host architecture to pkg-config (Closes: #875507)
+  * Use profiles nopython and noruby rather than stage1. (Closes: #875573)
+
+ -- Laurent Bigonville <bigon@debian.org>  Fri, 15 Sep 2017 11:46:07 +0200
+
+libselinux (2.7-1) unstable; urgency=medium
+
+  * New upstream release
+    - Bump libsepol1-dev build-dependency to >= 2.7 to match the release
+  * Bump debhelper compatibility to 10
+  * Bump Standards-Version to 4.1.0 (no further changes)
+  * debian/control: Remove Manoj from the uploader list and add myself
+    instead. Thanks to him for all the work in the past.
+  * Convert DEB_STAGE to DEB_BUILD_PROFILES (Closes: #869941)
+
+ -- Laurent Bigonville <bigon@debian.org>  Sat, 09 Sep 2017 23:32:59 +0200
+
+libselinux (2.7~rc2-1) experimental; urgency=medium
+
+  * Team upload.
+  * New upstream release candidate (Closes: #864479, #863854)
+    - debian/patches/: Drop all patches, applied upstream
+    - Bump libsepol1-dev build-dependency to >= 2.7~ to match the release
+    - debian/libselinux1.symbols: Adjust the .symbols file, selabel_subs_init
+     is not exported anymore but was never part of the API in the first place
+  * debian/watch: Add support for rc releases and use macros
+  * debian/control: Bump Standards-Version to 4.0.0 (no further changes)
+  * debian/ruby.mk: Fix the build of the ruby binding and link against libruby
+    (Closes: #819200)
+  * debian/python.mk:
+    - Do not explicityly link the python binding against libpython, this is
+      against the best practices in debian
+    - Use pkg-config to determine the python include directories
+
+ -- Laurent Bigonville <bigon@debian.org>  Wed, 21 Jun 2017 13:21:45 +0200
+
 libselinux (2.6-3) unstable; urgency=medium
 
   * Team upload.

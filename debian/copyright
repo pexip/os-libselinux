@@ -1,4 +1,4 @@
-This is the Debian packe for libselinux, and it is built from sources obtained from:
+This is the Debian package for libselinux, and it is built from sources obtained from:
 http://userspace.selinuxproject.org/trac/wiki/Releases
 
 This package was debianized by Colin Walters <walters@debian.org> on

@@ -28,6 +28,7 @@
 #define BOOLEAN 3
 #define CONSTRAINT 4
 #define RBAC 5
+#define BOUNDS 6
 
 struct boolean_t {
 	char *name;
@@ -192,7 +193,7 @@ static int __policy_init(const char *init_path)
 {
 	FILE *fp;
 	char path[PATH_MAX];
-	char errormsg[PATH_MAX];
+	char errormsg[PATH_MAX+1024+20];
 	struct sepol_policy_file *pf = NULL;
 	int rc;
 	unsigned int cnt;
@@ -200,7 +201,7 @@ static int __policy_init(const char *init_path)
 	path[PATH_MAX-1] = '\0';
 	if (init_path) {
 		strncpy(path, init_path, PATH_MAX-1);
-		fp = fopen(path, "r");
+		fp = fopen(path, "re");
 		if (!fp) {
 			snprintf(errormsg, sizeof(errormsg), 
 				 "unable to open %s:  %s\n",
@@ -217,7 +218,7 @@ static int __policy_init(const char *init_path)
 			PyErr_SetString( PyExc_ValueError, errormsg);
 			return 1;
 		}
-		fp = fopen(curpolicy, "r");
+		fp = fopen(curpolicy, "re");
 		if (!fp) {
 			snprintf(errormsg, sizeof(errormsg), 
 				 "unable to open %s:  %s\n",
@@ -425,6 +426,9 @@ static PyObject *analyze(PyObject *self __attribute__((unused)) , PyObject *args
 	if (reason & SEPOL_COMPUTEAV_RBAC)
 		RETURN(RBAC)
 
+	if (reason & SEPOL_COMPUTEAV_BOUNDS)
+		RETURN(BOUNDS)
+
         RETURN(BADCOMPUTE)
 }
 
@@ -440,14 +444,11 @@ static PyMethodDef audit2whyMethods[] = {
 
 #if PY_MAJOR_VERSION >= 3
 /* Module-initialization logic specific to Python 3 */
-struct module_state {
-	/* empty for now */
-};
 static struct PyModuleDef moduledef = {
 	PyModuleDef_HEAD_INIT,
 	"audit2why",
 	NULL,
-	sizeof(struct module_state),
+	0,
 	audit2whyMethods,
 	NULL,
 	NULL,
@@ -484,6 +485,7 @@ PyMODINIT_FUNC initaudit2why(void)
 	PyModule_AddIntConstant(m,"BOOLEAN", BOOLEAN);
 	PyModule_AddIntConstant(m,"CONSTRAINT", CONSTRAINT);
 	PyModule_AddIntConstant(m,"RBAC", RBAC);
+	PyModule_AddIntConstant(m,"BOUNDS", BOUNDS);
 
 #if PY_MAJOR_VERSION >= 3
 	return m;
