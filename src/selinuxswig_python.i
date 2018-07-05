@@ -8,7 +8,7 @@
 
 %pythoncode %{
 
-import shutil, os, stat
+import shutil, os, errno, stat
 
 DISABLED = -1
 PERMISSIVE = 0
@@ -26,14 +26,19 @@ def restorecon(path, recursive=False):
         status, context = matchpathcon(path, mode)
 
     if status == 0:
-        status, oldcontext = lgetfilecon(path)
+        try:
+            status, oldcontext = lgetfilecon(path)
+        except OSError as e:
+            if e.errno != errno.ENODATA:
+                raise
+            oldcontext = None
         if context != oldcontext:
             lsetfilecon(path, context)
 
         if recursive:
-            os.path.walk(path, lambda arg, dirname, fnames:
-                             map(restorecon, [os.path.join(dirname, fname)
-                                              for fname in fnames]), None)
+            for root, dirs, files in os.walk(path):
+                for name in files + dirs:
+                   restorecon(os.path.join(root, name))
 
 def chcon(path, context, recursive=False):
     """ Set the SELinux context on a given path """
