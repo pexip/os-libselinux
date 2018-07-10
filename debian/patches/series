@@ -1,5 +1,3 @@
 fix-makefile-bugs.patch
 fix-cross-compile.patch
-Add-pcre-version-string.patch
-Log-an-error-on-unknown-classes.patch
-libselinux-man-Add-missing-manpage-links-to-security.patch
+fix_python3_bindings.patch

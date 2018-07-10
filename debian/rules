@@ -36,7 +36,7 @@ export DH_OPTIONS
 ifeq ($(DEB_STAGE),stage1)
 	@dh $@
 else
-	@dh $@ --with=python2,ruby
+	@dh $@ --with=python2,python3,ruby
 endif
 
 ## Don't try to rebuild the debian/rules file
@@ -45,11 +45,11 @@ debian/rules:
 
 ## Skip python/ruby packages during stage1 build
 ifeq ($(DEB_STAGE),stage1)
-DH_OPTIONS += -Npython-selinux -Nruby-selinux
+DH_OPTIONS += -Npython-selinux -Nruby-selinux -Npython3-selinux
 endif
 
 ## Set up some variables to be passed to the upstream Makefile
-extra_make_args  = LIBSEPOLDIR=$(LIBDIR_LIBSEPOL)
+extra_make_args  = LIBSEPOLA=$(LIBDIR_LIBSEPOL)/libsepol.a
 extra_make_args += ARCH=$(DEB_HOST_GNU_CPU)
 extra_make_args += CC=$(DEB_HOST_GNU_TYPE)-gcc
 override_dh_auto_build: FORCE
@@ -81,3 +81,7 @@ override_dh_install: FORCE
 
 override_dh_gencontrol:
 	dh_gencontrol -- -VBuilt-Using="$(BUILT_USING)"
+
+override_dh_makeshlibs:
+	dh_makeshlibs -plibselinux1 --add-udeb="libselinux1-udeb"
+	dh_makeshlibs --remaining-packages

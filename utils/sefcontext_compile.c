@@ -1,125 +1,68 @@
 #include <ctype.h>
 #include <errno.h>
-#include <pcre.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-
-#include <linux/limits.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <getopt.h>
+#include <limits.h>
+#include <selinux/selinux.h>
+#include <sepol/sepol.h>
 
 #include "../src/label_file.h"
+#include "../src/regex.h"
 
-static int process_file(struct saved_data *data, const char *filename)
+const char *policy_file;
+static int ctx_err;
+
+static int validate_context(char **ctxp)
 {
-	struct spec *spec;
+	char *ctx = *ctxp;
+
+	if (policy_file && sepol_check_context(ctx) < 0) {
+		ctx_err = -1;
+		return ctx_err;
+	}
+
+	return 0;
+}
+
+static int process_file(struct selabel_handle *rec, const char *filename)
+{
 	unsigned int line_num;
+	int rc;
 	char *line_buf = NULL;
-	size_t line_len;
-	ssize_t len;
+	size_t line_len = 0;
 	FILE *context_file;
+	const char *prefix = NULL;
 
 	context_file = fopen(filename, "r");
 	if (!context_file) {
-		fprintf(stderr, "Error opening %s: %s\n", filename, strerror(errno));
+		fprintf(stderr, "Error opening %s: %s\n",
+			    filename, strerror(errno));
 		return -1;
 	}
 
 	line_num = 0;
-	while ((len = getline(&line_buf, &line_len, context_file)) != -1) {
-		char *context;
-		char *mode;
-		char *regex;
-		char *cp, *anchored_regex;
-		char *buf_p;
-		pcre *re;
-		pcre_extra *sd;
-		const char *err;
-		int items, erroff, rc;
-		size_t regex_len;
-		int32_t stem_id;
-
-		len = strlen(line_buf);
-		if (line_buf[len - 1] == '\n')
-			line_buf[len - 1] = 0;
-		buf_p = line_buf;
-		while (isspace(*buf_p))
-			buf_p++;
-		/* Skip comment lines and empty lines. */
-		if (*buf_p == '#' || *buf_p == 0)
-			continue;
-
-		items = sscanf(line_buf, "%ms %ms %ms", &regex, &mode, &context);
-		if (items < 2 || items > 3) {
-			fprintf(stderr, "invalid entry, skipping:%s", line_buf);
-			continue;
+	rc = 0;
+	while (getline(&line_buf, &line_len, context_file) > 0) {
+		rc = process_line(rec, filename, prefix, line_buf, ++line_num);
+		if (rc || ctx_err) {
+			/* With -p option need to check and fail if ctx err as
+			 * process_line() context validation on Linux does not
+			 * return an error, but does print the error line to
+			 * stderr. Android will set both to error and print
+			 * the error line. */
+			rc = -1;
+			goto out;
 		}
-
-		if (items == 2) {
-			context = mode;
-			mode = NULL;
-		}
-
-		rc = grow_specs(data);
-		if (rc) {
-			fprintf(stderr, "grow_specs failed: %s\n", strerror(errno));
-			return rc;
-		}
-
-		spec = &data->spec_arr[data->nspec];
-
-		spec->lr.ctx_raw = context;
-		spec->mode = string_to_mode(mode);
-		if (spec->mode == -1) {
-			fprintf(stderr, "%s: line %d has invalid file type %s\n",
-				regex, line_num + 1, mode);
-			spec->mode = 0;
-		}
-		free(mode);
-		spec->regex_str = regex;
-
-		stem_id = find_stem_from_spec(data, regex);
-		spec->stem_id = stem_id;
-		/* skip past the fixed stem part */
-		if (stem_id != -1)
-			regex += data->stem_arr[stem_id].len;
-
-		regex_len = strlen(regex);
-		cp = anchored_regex = malloc(regex_len + 3);
-		if (!cp) {
-			fprintf(stderr, "Malloc Failed: %s\n", strerror(errno));
-			return -1;
-		}
-		*cp++ = '^';
-		memcpy(cp, regex, regex_len);
-		cp += regex_len;
-		*cp++ = '$';
-		*cp = '\0';
-
-		spec_hasMetaChars(spec);
-
-		re = pcre_compile(anchored_regex, 0, &err, &erroff, NULL);
-		if (!re) {
-			fprintf(stderr, "PCRE compilation failed for %s at offset %d: %s\n", anchored_regex, erroff, err);
-			return -1;
-		}
-		spec->regex = re;
-
-		sd = pcre_study(re, 0, &err);
-		if (!sd) {
-			fprintf(stderr, "PCRE study failed for %s: %s\n", anchored_regex, err);
-			return -1;
-		}
-		free(anchored_regex);
-		spec->sd = sd;
-
-		line_num++;
-		data->nspec++;
 	}
-
+out:
 	free(line_buf);
 	fclose(context_file);
-
-	return 0;
+	return rc;
 }
 
 /*
@@ -127,25 +70,30 @@ static int process_file(struct saved_data *data, const char *filename)
  *
  * u32 - magic number
  * u32 - version
+ * u32 - length of pcre version EXCLUDING nul
+ * char - pcre version string EXCLUDING nul
  * u32 - number of stems
  * ** Stems
- * 	u32  - length of stem EXCLUDING nul
- * 	char - stem char array INCLUDING nul
+ *	u32  - length of stem EXCLUDING nul
+ *	char - stem char array INCLUDING nul
  * u32 - number of regexs
  * ** Regexes
- * 	u32  - length of upcoming context INCLUDING nul
- * 	char - char array of the raw context
+ *	u32  - length of upcoming context INCLUDING nul
+ *	char - char array of the raw context
  *	u32  - length of the upcoming regex_str
  *	char - char array of the original regex string including the stem.
- *	mode_t - mode bits
+ *	u32  - mode bits for >= SELINUX_COMPILED_FCONTEXT_MODE
+ *	       mode_t for <= SELINUX_COMPILED_FCONTEXT_PCRE_VERS
  *	s32  - stemid associated with the regex
  *	u32  - spec has meta characters
+ *	u32  - The specs prefix_len if >= SELINUX_COMPILED_FCONTEXT_PREFIX_LEN
  *	u32  - data length of the pcre regex
  *	char - a bufer holding the raw pcre regex info
  *	u32  - data length of the pcre regex study daya
  *	char - a buffer holding the raw pcre regex study data
  */
-static int write_binary_file(struct saved_data *data, int fd)
+static int write_binary_file(struct saved_data *data, int fd,
+			     int do_write_precompregex)
 {
 	struct spec *specs = data->spec_arr;
 	FILE *bin_file;
@@ -154,6 +102,8 @@ static int write_binary_file(struct saved_data *data, int fd)
 	uint32_t section_len;
 	uint32_t i;
 	int rc;
+	const char *reg_version;
+	const char *reg_arch;
 
 	bin_file = fdopen(fd, "w");
 	if (!bin_file) {
@@ -170,6 +120,30 @@ static int write_binary_file(struct saved_data *data, int fd)
 	section_len = SELINUX_COMPILED_FCONTEXT_MAX_VERS;
 	len = fwrite(&section_len, sizeof(uint32_t), 1, bin_file);
 	if (len != 1)
+		goto err;
+
+	/* write version of the regex back-end */
+	reg_version = regex_version();
+	if (!reg_version)
+		goto err;
+	section_len = strlen(reg_version);
+	len = fwrite(&section_len, sizeof(uint32_t), 1, bin_file);
+	if (len != 1)
+		goto err;
+	len = fwrite(reg_version, sizeof(char), section_len, bin_file);
+	if (len != section_len)
+		goto err;
+
+	/* write regex arch string */
+	reg_arch = regex_arch_string();
+	if (!reg_arch)
+		goto err;
+	section_len = strlen(reg_arch);
+	len = fwrite(&section_len, sizeof(uint32_t), 1, bin_file);
+	if (len != 1)
+		goto err;
+	len = fwrite(reg_arch, sizeof(char), section_len, bin_file);
+	if (len != section_len)
 		goto err;
 
 	/* write the number of stems coming */
@@ -204,11 +178,10 @@ static int write_binary_file(struct saved_data *data, int fd)
 		char *context = specs[i].lr.ctx_raw;
 		char *regex_str = specs[i].regex_str;
 		mode_t mode = specs[i].mode;
+		size_t prefix_len = specs[i].prefix_len;
 		int32_t stem_id = specs[i].stem_id;
-		pcre *re = specs[i].regex;
-		pcre_extra *sd = get_pcre_extra(&specs[i]);
+		struct regex_data *re = specs[i].regex;
 		uint32_t to_write;
-		size_t size;
 
 		/* length of the context string (including nul) */
 		to_write = strlen(context) + 1;
@@ -233,7 +206,8 @@ static int write_binary_file(struct saved_data *data, int fd)
 			goto err;
 
 		/* binary F_MODE bits */
-		len = fwrite(&mode, sizeof(mode), 1, bin_file);
+		to_write = mode;
+		len = fwrite(&to_write, sizeof(uint32_t), 1, bin_file);
 		if (len != 1)
 			goto err;
 
@@ -248,36 +222,15 @@ static int write_binary_file(struct saved_data *data, int fd)
 		if (len != 1)
 			goto err;
 
-		/* determine the size of the pcre data in bytes */
-		rc = pcre_fullinfo(re, NULL, PCRE_INFO_SIZE, &size);
-		if (rc < 0)
-			goto err;
-
-		/* write the number of bytes in the pcre data */
-		to_write = size;
-		len = fwrite(&to_write, sizeof(uint32_t), 1, bin_file);
+		/* For SELINUX_COMPILED_FCONTEXT_PREFIX_LEN */
+		to_write = prefix_len;
+		len = fwrite(&to_write, sizeof(to_write), 1, bin_file);
 		if (len != 1)
 			goto err;
 
-		/* write the actual pcre data as a char array */
-		len = fwrite(re, 1, to_write, bin_file);
-		if (len != to_write)
-			goto err;
-
-		/* determine the size of the pcre study info */
-		rc = pcre_fullinfo(re, sd, PCRE_INFO_STUDYSIZE, &size);
+		/* Write regex related data */
+		rc = regex_writef(re, bin_file, do_write_precompregex);
 		if (rc < 0)
-			goto err;
-
-		/* write the number of bytes in the pcre study data */
-		to_write = size;
-		len = fwrite(&to_write, sizeof(uint32_t), 1, bin_file);
-		if (len != 1)
-			goto err;
-
-		/* write the actual pcre study data as a char array */
-		len = fwrite(sd->study_data, 1, to_write, bin_file);
-		if (len != to_write)
 			goto err;
 	}
 
@@ -290,7 +243,7 @@ err:
 	goto out;
 }
 
-static int free_specs(struct saved_data *data)
+static void free_specs(struct saved_data *data)
 {
 	struct spec *specs = data->spec_arr;
 	unsigned int num_entries = data->nspec;
@@ -300,72 +253,210 @@ static int free_specs(struct saved_data *data)
 		free(specs[i].lr.ctx_raw);
 		free(specs[i].lr.ctx_trans);
 		free(specs[i].regex_str);
-		pcre_free(specs[i].regex);
-		pcre_free_study(specs[i].sd);
+		free(specs[i].type_str);
+		regex_data_free(specs[i].regex);
 	}
 	free(specs);
 
 	num_entries = data->num_stems;
-	for (i = 0; i < num_entries; i++) {
+	for (i = 0; i < num_entries; i++)
 		free(data->stem_arr[i].buf);
-	}
 	free(data->stem_arr);
 
 	memset(data, 0, sizeof(*data));
-	return 0;
+}
+
+static void usage(const char *progname)
+{
+	fprintf(stderr,
+	    "usage: %s [-o out_file] [-p policy_file] fc_file\n"
+	    "Where:\n\t"
+	    "-o       Optional file name of the PCRE formatted binary\n\t"
+	    "         file to be output. If not specified the default\n\t"
+	    "         will be fc_file with the .bin suffix appended.\n\t"
+	    "-p       Optional binary policy file that will be used to\n\t"
+	    "         validate contexts defined in the fc_file.\n\t"
+	    "-r       Omit precompiled regular expressions from the output.\n\t"
+	    "         (PCRE2 only. Compiled PCRE2 regular expressions are\n\t"
+	    "         not portable across architectures. Use this flag\n\t"
+	    "         if you know that you build for an incompatible\n\t"
+	    "         architecture to save space. When linked against\n\t"
+	    "         PCRE1 this flag is ignored.)\n\t"
+	    "-i       Print regular expression info end exit. That is, back\n\t"
+	    "         end version and architecture identifier.\n\t"
+	    "         Arch identifier format (PCRE2):\n\t"
+	    "         <pointer width>-<size type width>-<endianness>, e.g.,\n\t"
+	    "         \"8-8-el\" for x86_64.\n\t"
+	    "fc_file  The text based file contexts file to be processed.\n",
+	    progname);
+		exit(EXIT_FAILURE);
 }
 
 int main(int argc, char *argv[])
 {
-	struct saved_data data;
-	const char *path;
+	const char *path = NULL;
+	const char *out_file = NULL;
+	int do_write_precompregex = 1;
 	char stack_path[PATH_MAX + 1];
-	int rc;
-	char *tmp= NULL;
-	int fd;
+	char *tmp = NULL;
+	int fd, rc, opt;
+	FILE *policy_fp = NULL;
+	struct stat buf;
+	struct selabel_handle *rec = NULL;
+	struct saved_data *data = NULL;
 
-	if (argc != 2) {
-		fprintf(stderr, "usage: %s input_file\n", argv[0]);
+	if (argc < 2)
+		usage(argv[0]);
+
+	while ((opt = getopt(argc, argv, "io:p:r")) > 0) {
+		switch (opt) {
+		case 'o':
+			out_file = optarg;
+			break;
+		case 'p':
+			policy_file = optarg;
+			break;
+		case 'r':
+			do_write_precompregex = 0;
+			break;
+		case 'i':
+			printf("%s (%s)\n", regex_version(),
+					regex_arch_string());
+			return 0;
+		default:
+			usage(argv[0]);
+		}
+	}
+
+	if (optind >= argc)
+		usage(argv[0]);
+
+	path = argv[optind];
+	if (stat(path, &buf) < 0) {
+		fprintf(stderr, "%s: could not stat: %s: %s\n", argv[0], path, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
-	memset(&data, 0, sizeof(data));
+	/* Open binary policy if supplied. */
+	if (policy_file) {
+		policy_fp = fopen(policy_file, "r");
 
-	path = argv[1];
+		if (!policy_fp) {
+			fprintf(stderr, "%s: failed to open %s: %s\n",
+				argv[0], policy_file, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
 
-	rc = process_file(&data, path);
-	if (rc < 0)
-		return rc;
+		if (sepol_set_policydb_from_file(policy_fp) < 0) {
+			fprintf(stderr, "%s: failed to load policy from %s\n",
+				argv[0], policy_file);
+			fclose(policy_fp);
+			exit(EXIT_FAILURE);
+		}
+	}
 
-	rc = sort_specs(&data);
-	if (rc)
-		return rc;
+	/* Generate dummy handle for process_line() function */
+	rec = (struct selabel_handle *)calloc(1, sizeof(*rec));
+	if (!rec) {
+		fprintf(stderr, "%s: calloc failed: %s\n", argv[0], strerror(errno));
+		if (policy_fp)
+			fclose(policy_fp);
+		exit(EXIT_FAILURE);
+	}
+	rec->backend = SELABEL_CTX_FILE;
 
-	rc = snprintf(stack_path, sizeof(stack_path), "%s.bin", path);
-	if (rc < 0 || rc >= sizeof(stack_path))
-		return rc;
+	/* Need to set validation on to get the bin file generated by the
+	 * process_line function, however as the bin file being generated
+	 * may not be related to the currently loaded policy (that it
+	 * would be validated against), then set callback to ignore any
+	 * validation - unless the -p option is used in which case if an
+	 * error is detected, the process will be aborted. */
+	rec->validating = 1;
+	selinux_set_callback(SELINUX_CB_VALIDATE,
+			    (union selinux_callback)&validate_context);
 
-	if (asprintf(&tmp, "%sXXXXXX", stack_path) < 0)
-		return -1;
+	data = (struct saved_data *)calloc(1, sizeof(*data));
+	if (!data) {
+		fprintf(stderr, "%s: calloc failed: %s\n", argv[0], strerror(errno));
+		free(rec);
+		if (policy_fp)
+			fclose(policy_fp);
+		exit(EXIT_FAILURE);
+	}
+
+	rec->data = data;
+
+	rc = process_file(rec, path);
+	if (rc < 0) {
+		fprintf(stderr, "%s: process_file failed\n", argv[0]);
+		goto err;
+	}
+
+	rc = sort_specs(data);
+	if (rc) {
+		fprintf(stderr, "%s: sort_specs failed\n", argv[0]);
+		goto err;
+	}
+
+	if (out_file)
+		rc = snprintf(stack_path, sizeof(stack_path), "%s", out_file);
+	else
+		rc = snprintf(stack_path, sizeof(stack_path), "%s.bin", path);
+
+	if (rc < 0 || rc >= (int)sizeof(stack_path)) {
+		fprintf(stderr, "%s: snprintf failed\n", argv[0]);
+		goto err;
+	}
+
+	tmp = malloc(strlen(stack_path) + 7);
+	if (!tmp) {
+		fprintf(stderr, "%s: malloc failed: %s\n", argv[0], strerror(errno));
+		goto err;
+	}
+
+	rc = sprintf(tmp, "%sXXXXXX", stack_path);
+	if (rc < 0) {
+		fprintf(stderr, "%s: sprintf failed\n", argv[0]);
+		goto err;
+	}
 
 	fd  = mkstemp(tmp);
-	if (fd < 0)
+	if (fd < 0) {
+		fprintf(stderr, "%s: mkstemp %s failed: %s\n", argv[0], tmp, strerror(errno));
 		goto err;
+	}
 
-	rc = write_binary_file(&data, fd);
+	rc = fchmod(fd, buf.st_mode);
+	if (rc < 0) {
+		fprintf(stderr, "%s: fchmod %s failed: %s\n", argv[0], tmp, strerror(errno));
+		goto err_unlink;
+	}
 
-	if (rc < 0)
-		goto err;
+	rc = write_binary_file(data, fd, do_write_precompregex);
+	if (rc < 0) {
+		fprintf(stderr, "%s: write_binary_file %s failed\n", argv[0], tmp);
+		goto err_unlink;
+	}
 
-	rename(tmp, stack_path);
-	rc = free_specs(&data);
-	if (rc < 0)
-		goto err;
+	rc = rename(tmp, stack_path);
+	if (rc < 0) {
+		fprintf(stderr, "%s: rename %s -> %s failed: %s\n", argv[0], tmp, stack_path, strerror(errno));
+		goto err_unlink;
+	}
 
 	rc = 0;
 out:
+	if (policy_fp)
+		fclose(policy_fp);
+
+	free_specs(data);
+	free(rec);
+	free(data);
 	free(tmp);
 	return rc;
+
+err_unlink:
+	unlink(tmp);
 err:
 	rc = -1;
 	goto out;

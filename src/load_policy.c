@@ -11,11 +11,17 @@
 #include <string.h>
 #include <errno.h>
 #include "selinux_internal.h"
+#ifndef ANDROID
 #include <sepol/sepol.h>
 #include <sepol/policydb.h>
+#endif
 #include <dlfcn.h>
 #include "policy.h"
 #include <limits.h>
+
+#ifndef MNT_DETACH
+#define MNT_DETACH 2
+#endif
 
 int security_load_policy(void *data, size_t len)
 {
@@ -41,6 +47,7 @@ int security_load_policy(void *data, size_t len)
 
 hidden_def(security_load_policy)
 
+#ifndef ANDROID
 int load_setlocaldefs hidden = 1;
 
 #undef max
@@ -249,7 +256,6 @@ checkbool:
 			}
 		}
 		
-#ifndef DISABLE_BOOL
 		if (preservebools) {
 			int *values, len, i;
 			char **names;
@@ -272,7 +278,6 @@ checkbool:
 			(void)genbools(data, size,
 				       (char *)selinux_booleans_path());
 		}
-#endif
 	}
 
 
@@ -348,11 +353,6 @@ int selinux_init_load_policy(int *enforce)
 		fclose(cfg);
 		free(buf);
 	}
-#ifndef MNT_DETACH
-#define MNT_DETACH 2
-#endif
-	if (rc == 0)
-		umount2("/proc", MNT_DETACH);
 
 	/* 
 	 * Determine the final desired mode.
@@ -400,10 +400,16 @@ int selinux_init_load_policy(int *enforce)
 			/* Only emit this error if selinux was not disabled */
 			fprintf(stderr, "Mount failed for selinuxfs on %s:  %s\n", SELINUXMNT, strerror(errno));
 		}
+
+		if (rc == 0)
+			umount2("/proc", MNT_DETACH);
                 
 		goto noload;
 	}
 	set_selinuxmnt(mntpoint);
+
+	if (rc == 0)
+		umount2("/proc", MNT_DETACH);
 
 	/*
 	 * Note:  The following code depends on having selinuxfs 
@@ -417,13 +423,15 @@ int selinux_init_load_policy(int *enforce)
 			/* Successfully disabled, so umount selinuxfs too. */
 			umount(selinux_mnt);
 			fini_selinuxmnt();
+			goto noload;
+		} else {
+			/*
+			 * It's possible that this failed because policy has
+			 * already been loaded. We can't disable SELinux now,
+			 * so the best we can do is force it to be permissive.
+			 */
+			*enforce = 0;
 		}
-		/*
-		 * If we failed to disable, SELinux will still be 
-		 * effectively permissive, because no policy is loaded. 
-		 * No need to call security_setenforce(0) here.
-		 */
-		goto noload;
 	}
 
 	/*
@@ -442,6 +450,9 @@ int selinux_init_load_policy(int *enforce)
 		}
 	}
 
+	if (seconfig == -1)
+		goto noload;
+
 	/* Load the policy. */
 	return selinux_mkload_policy(0);
 
@@ -455,3 +466,4 @@ int selinux_init_load_policy(int *enforce)
 	 */
 	return -1;
 }
+#endif
