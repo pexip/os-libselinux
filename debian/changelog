@@ -1,4 +1,4 @@
-libselinux (2.6-3pexip1) pexip; urgency=medium
+libselinux (2.6-3+b3pexip1) pexip; urgency=medium
 
   * Migrate to Stretch
 
