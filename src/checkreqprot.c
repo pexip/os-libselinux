@@ -9,9 +9,9 @@
 #include <stdio.h>
 #include <limits.h>
 
-int security_setenforce(int value)
+int security_get_checkreqprot(void)
 {
-	int fd, ret;
+	int fd, ret, checkreqprot = 0;
 	char path[PATH_MAX];
 	char buf[20];
 
@@ -20,18 +20,21 @@ int security_setenforce(int value)
 		return -1;
 	}
 
-	snprintf(path, sizeof path, "%s/enforce", selinux_mnt);
-	fd = open(path, O_RDWR | O_CLOEXEC);
+	snprintf(path, sizeof(path), "%s/checkreqprot", selinux_mnt);
+	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		return -1;
 
-	snprintf(buf, sizeof buf, "%d", value);
-	ret = write(fd, buf, strlen(buf));
+	memset(buf, 0, sizeof(buf));
+	ret = read(fd, buf, sizeof(buf) - 1);
 	close(fd);
 	if (ret < 0)
 		return -1;
 
-	return 0;
+	if (sscanf(buf, "%d", &checkreqprot) != 1)
+		return -1;
+
+	return checkreqprot;
 }
 
-hidden_def(security_setenforce)
+hidden_def(security_get_checkreqprot);
