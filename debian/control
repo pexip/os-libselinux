@@ -22,7 +22,7 @@ X-Python-Version: >= 2.4
 X-Python3-Version: >= 3.2
 XS-Ruby-Versions: all
 Homepage: http://userspace.selinuxproject.org/
-XS-Pexip-Upstream: http://ftp.debian.org/debian/ stretch
+XS-Pexip-Upstream: http://ftp.debian.org/debian/ buster
 
 Package: selinux-utils
 Architecture: linux-any
