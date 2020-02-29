@@ -1,3 +1,9 @@
+libselinux (2.8-1pexip1) pexip; urgency=medium
+
+  * Migrate to Buster
+
+ -- Vincent Sanders <vince@pexip.com>  Sat, 29 Feb 2020 15:44:45 +0000
+
 libselinux (2.8-1) unstable; urgency=medium
 
   * New upstream release
