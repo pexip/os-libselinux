@@ -11,8 +11,7 @@ all: $(PYTHON_VERSIONS) $(PYTHON3_VERSIONS)
 
 ## SELinux does not have a very nice build process
 extra_python_args  = PYTHON=$@
-extra_python_args += PYSITEDIR=$(DESTDIR)/usr/lib/$@/dist-packages
-extra_python_args += PYINC=-I/usr/include/$@
+extra_python_args += PYLIBS=
 
 ## How to build and install each individually-versioned copy
 $(PYTHON_VERSIONS) $(PYTHON3_VERSIONS): python%:

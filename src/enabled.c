@@ -6,7 +6,6 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
-#include <stdio_ext.h>
 #include "policy.h"
 
 int is_selinux_enabled(void)
@@ -37,7 +36,7 @@ int is_selinux_mls_enabled(void)
 		return enabled;
 
 	snprintf(path, sizeof path, "%s/mls", selinux_mnt);
-	fd = open(path, O_RDONLY);
+	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		return enabled;
 

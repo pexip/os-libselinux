@@ -21,7 +21,7 @@ int security_getenforce(void)
 	}
 
 	snprintf(path, sizeof path, "%s/enforce", selinux_mnt);
-	fd = open(path, O_RDONLY);
+	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		return -1;
 
@@ -34,7 +34,7 @@ int security_getenforce(void)
 	if (sscanf(buf, "%d", &enforce) != 1)
 		return -1;
 
-	return enforce;
+	return !!enforce;
 }
 
 hidden_def(security_getenforce)
