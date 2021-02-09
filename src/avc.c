@@ -145,22 +145,7 @@ int avc_get_initial_sid(const char * name, security_id_t * sid)
 	return rc;
 }
 
-int avc_open(struct selinux_opt *opts, unsigned nopts)
-{
-	avc_setenforce = 0;
-
-	while (nopts--)
-		switch(opts[nopts].type) {
-		case AVC_OPT_SETENFORCE:
-			avc_setenforce = 1;
-			avc_enforcing = !!opts[nopts].value;
-			break;
-		}
-
-	return avc_init("avc", NULL, NULL, NULL, NULL);
-}
-
-int avc_init(const char *prefix,
+static int avc_init_internal(const char *prefix,
 	     const struct avc_memory_callback *mem_cb,
 	     const struct avc_log_callback *log_cb,
 	     const struct avc_thread_callback *thread_cb,
@@ -246,6 +231,30 @@ int avc_init(const char *prefix,
 	return rc;
 }
 
+int avc_open(struct selinux_opt *opts, unsigned nopts)
+{
+	avc_setenforce = 0;
+
+	while (nopts--)
+		switch(opts[nopts].type) {
+		case AVC_OPT_SETENFORCE:
+			avc_setenforce = 1;
+			avc_enforcing = !!opts[nopts].value;
+			break;
+		}
+
+	return avc_init_internal("avc", NULL, NULL, NULL, NULL);
+}
+
+int avc_init(const char *prefix,
+	     const struct avc_memory_callback *mem_cb,
+	     const struct avc_log_callback *log_cb,
+	     const struct avc_thread_callback *thread_cb,
+	     const struct avc_lock_callback *lock_cb)
+{
+	return avc_init_internal(prefix, mem_cb, log_cb, thread_cb, lock_cb);
+}
+
 void avc_cache_stats(struct avc_cache_stats *p)
 {
 	memcpy(p, &cache_stats, sizeof(cache_stats));
@@ -294,7 +303,6 @@ void avc_av_stats(void)
 		slots_used, AVC_CACHE_SLOTS, max_chain_len);
 }
 
-hidden_def(avc_av_stats)
 
 static inline struct avc_node *avc_reclaim_node(void)
 {
@@ -494,7 +502,6 @@ void avc_cleanup(void)
 {
 }
 
-hidden_def(avc_cleanup)
 
 int avc_reset(void)
 {
@@ -539,7 +546,6 @@ int avc_reset(void)
 	return rc;
 }
 
-hidden_def(avc_reset)
 
 void avc_destroy(void)
 {
@@ -733,7 +739,6 @@ void avc_audit(security_id_t ssid, security_id_t tsid,
 	avc_release_lock(avc_log_lock);
 }
 
-hidden_def(avc_audit)
 
 
 static void avd_init(struct av_decision *avd)
@@ -825,7 +830,6 @@ int avc_has_perm_noaudit(security_id_t ssid,
 	return rc;
 }
 
-hidden_def(avc_has_perm_noaudit)
 
 int avc_has_perm(security_id_t ssid, security_id_t tsid,
 		 security_class_t tclass, access_vector_t requested,

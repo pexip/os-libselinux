@@ -13,7 +13,6 @@
 #include <stdio.h>
 #include <selinux/selinux.h>
 #include <selinux/label.h>
-#include "dso.h"
 #include "sha1.h"
 
 #if defined(ANDROID) || defined(__APPLE__)
@@ -26,22 +25,22 @@
  */
 int selabel_file_init(struct selabel_handle *rec,
 			    const struct selinux_opt *opts,
-			    unsigned nopts) hidden;
+			    unsigned nopts) ;
 int selabel_media_init(struct selabel_handle *rec,
 			    const struct selinux_opt *opts,
-			    unsigned nopts) hidden;
+			    unsigned nopts) ;
 int selabel_x_init(struct selabel_handle *rec,
 			    const struct selinux_opt *opts,
-			    unsigned nopts) hidden;
+			    unsigned nopts) ;
 int selabel_db_init(struct selabel_handle *rec,
 			    const struct selinux_opt *opts,
-			    unsigned nopts) hidden;
+			    unsigned nopts) ;
 int selabel_property_init(struct selabel_handle *rec,
 			    const struct selinux_opt *opts,
-			    unsigned nopts) hidden;
+			    unsigned nopts) ;
 int selabel_service_init(struct selabel_handle *rec,
 			    const struct selinux_opt *opts,
-			    unsigned nopts) hidden;
+			    unsigned nopts) ;
 
 /*
  * Labeling internal structures
@@ -87,6 +86,13 @@ struct selabel_handle {
 	void (*func_close) (struct selabel_handle *h);
 	void (*func_stats) (struct selabel_handle *h);
 	bool (*func_partial_match) (struct selabel_handle *h, const char *key);
+	bool (*func_get_digests_all_partial_matches) (struct selabel_handle *h,
+						      const char *key,
+						      uint8_t **calculated_digest,
+						      uint8_t **xattr_digest,
+						      size_t *digest_len);
+	bool (*func_hash_all_partial_matches) (struct selabel_handle *h,
+	                                       const char *key, uint8_t *digest);
 	struct selabel_lookup_rec *(*func_lookup_best_match)
 						    (struct selabel_handle *h,
 						    const char *key,
@@ -113,14 +119,14 @@ struct selabel_handle {
  */
 extern int
 selabel_validate(struct selabel_handle *rec,
-		 struct selabel_lookup_rec *contexts) hidden;
+		 struct selabel_lookup_rec *contexts) ;
 
 /*
  * Compatibility support
  */
 extern int myprintf_compat;
 extern void __attribute__ ((format(printf, 1, 2)))
-(*myprintf) (const char *fmt, ...) hidden;
+(*myprintf) (const char *fmt, ...) ;
 
 #define COMPAT_LOG(type, fmt...) if (myprintf_compat)	  \
 		myprintf(fmt);				  \
@@ -130,7 +136,7 @@ extern void __attribute__ ((format(printf, 1, 2)))
 extern int
 compat_validate(struct selabel_handle *rec,
 		struct selabel_lookup_rec *contexts,
-		const char *path, unsigned lineno) hidden;
+		const char *path, unsigned lineno) ;
 
 /*
  * The read_spec_entries function may be used to

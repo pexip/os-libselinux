@@ -10,25 +10,12 @@
 static pthread_once_t once = PTHREAD_ONCE_INIT;
 static int selinux_enabled;
 
-static int avc_reset_callback(uint32_t event __attribute__((unused)),
-		      security_id_t ssid __attribute__((unused)),
-		      security_id_t tsid __attribute__((unused)),
-		      security_class_t tclass __attribute__((unused)),
-		      access_vector_t perms __attribute__((unused)),
-		      access_vector_t *out_retained __attribute__((unused)))
-{
-	flush_class_cache();
-	return 0;
-}
-
 static void avc_init_once(void)
 {
 	selinux_enabled = is_selinux_enabled();
 	if (selinux_enabled == 1) {
 		if (avc_open(NULL, 0))
 			return;
-		avc_add_callback(avc_reset_callback, AVC_CALLBACK_RESET,
-				 0, 0, 0, 0);
 	}
 }
 
@@ -77,7 +64,7 @@ int selinux_check_access(const char *scon, const char *tcon, const char *class, 
        return avc_has_perm (scon_id, tcon_id, sclass, av, NULL, aux);
 }
 
-int selinux_check_passwd_access(access_vector_t requested)
+static int selinux_check_passwd_access_internal(access_vector_t requested)
 {
 	int status = -1;
 	char *user_context;
@@ -89,8 +76,10 @@ int selinux_check_passwd_access(access_vector_t requested)
 		int retval;
 
 		passwd_class = string_to_security_class("passwd");
-		if (passwd_class == 0)
+		if (passwd_class == 0) {
+			freecon(user_context);
 			return 0;
+		}
 
 		retval = security_compute_av_raw(user_context,
 						     user_context,
@@ -110,9 +99,11 @@ int selinux_check_passwd_access(access_vector_t requested)
 	return status;
 }
 
-hidden_def(selinux_check_passwd_access)
+int selinux_check_passwd_access(access_vector_t requested) {
+	return selinux_check_passwd_access_internal(requested);
+}
 
 int checkPasswdAccess(access_vector_t requested)
 {
-	return selinux_check_passwd_access(requested);
+	return selinux_check_passwd_access_internal(requested);
 }

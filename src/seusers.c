@@ -88,7 +88,7 @@ static int process_seusers(const char *buffer,
 	return -2;		/* error */
 }
 
-int require_seusers hidden = 0;
+int require_seusers  = 0;
 
 #include <pwd.h>
 #include <grp.h>
@@ -274,7 +274,7 @@ int getseuser(const char *username, const char *service,
 	char *buffer = NULL;
 	size_t size = 0;
 	char *rec = NULL;
-	char *path=NULL;
+	char *path = NULL;
 	FILE *fp = NULL;
 	if (asprintf(&path,"%s/logins/%s", selinux_policy_root(), username) <  0)
 		goto err;
