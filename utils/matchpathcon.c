@@ -14,7 +14,7 @@
 static __attribute__ ((__noreturn__)) void usage(const char *progname)
 {
 	fprintf(stderr,
-		"usage:  %s [-N] [-n] [-f file_contexts] [ -P policy_root_path ] [-p prefix] [-Vq] path...\n",
+		"usage:  %s [-V] [-N] [-n] [-m type] [-f file_contexts_file] [-p prefix] [-P policy_root_path] filepath...\n",
 		progname);
 	exit(1);
 }
@@ -25,7 +25,7 @@ static int printmatchpathcon(const char *path, int header, int mode)
 	int rc = matchpathcon(path, mode, &buf);
 	if (rc < 0) {
 		if (errno == ENOENT) {
-			buf=strdup("<<none>>");
+			buf = strdup("<<none>>");
 		} else {
 			fprintf(stderr, "matchpathcon(%s) failed: %s\n", path,
 				strerror(errno));
@@ -72,6 +72,9 @@ int main(int argc, char **argv)
 	int notrans = 0;
 	int error = 0;
 	int quiet = 0;
+
+	fprintf(stderr,
+		"Deprecated, use selabel_lookup\n");
 
 	if (argc < 2)
 		usage(argv[0]);

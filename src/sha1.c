@@ -11,7 +11,7 @@
 //  Modified to:
 //    - stop symbols being exported for libselinux shared library - October 2015
 //								       Richard Haines <richard_c_haines@btinternet.com>
-//    - Not cast the workspace from a byte array to a CHAR64LONG16 due to allignment isses.
+//    - Not cast the workspace from a byte array to a CHAR64LONG16 due to alignment isses.
 //      Fixes:
 //        sha1.c:73:33: error: cast from 'uint8_t *' (aka 'unsigned char *') to 'CHAR64LONG16 *' increases required alignment from 1 to 4 [-Werror,-Wcast-align]
 //             CHAR64LONG16*       block = (CHAR64LONG16*) workspace;
@@ -23,7 +23,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "sha1.h"
-#include "dso.h"
 #include <memory.h>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -78,7 +77,7 @@ void
     CHAR64LONG16        workspace;
     CHAR64LONG16*       block = &workspace;
 
-    memcpy( block, buffer, 64 );
+    memcpy(block, buffer, 64);
 
     // Copy context->state[] to working vars
     a = state[0];
@@ -126,7 +125,7 @@ void
 //
 //  Initialises an SHA1 Context. Use this to initialise/reset a context.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void hidden
+void 
     Sha1Initialise
     (
         Sha1Context*                Context
@@ -148,7 +147,7 @@ void hidden
 //  Adds data to the SHA1 context. This will process the data and update the internal state of the context. Keep on
 //  calling this function until all the data has been added. Then call Sha1Finalise to calculate the hash.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void hidden
+void 
     Sha1Update
     (
         Sha1Context*        Context,
@@ -160,18 +159,18 @@ void hidden
     uint32_t    j;
 
     j = (Context->Count[0] >> 3) & 63;
-    if( (Context->Count[0] += BufferSize << 3) < (BufferSize << 3) )
+    if ((Context->Count[0] += BufferSize << 3) < (BufferSize << 3))
     {
         Context->Count[1]++;
     }
 
     Context->Count[1] += (BufferSize >> 29);
-    if( (j + BufferSize) > 63 )
+    if ((j + BufferSize) > 63)
     {
         i = 64 - j;
-        memcpy( &Context->Buffer[j], Buffer, i );
+        memcpy(&Context->Buffer[j], Buffer, i);
         TransformFunction(Context->State, Context->Buffer);
-        for( ; i + 63 < BufferSize; i += 64 )
+        for (; i + 63 < BufferSize; i += 64)
         {
             TransformFunction(Context->State, (uint8_t*)Buffer + i);
         }
@@ -182,7 +181,7 @@ void hidden
         i = 0;
     }
 
-    memcpy( &Context->Buffer[j], &((uint8_t*)Buffer)[i], BufferSize - i );
+    memcpy(&Context->Buffer[j], &((uint8_t*)Buffer)[i], BufferSize - i);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -191,7 +190,7 @@ void hidden
 //  Performs the final calculation of the hash and returns the digest (20 byte buffer containing 160bit hash). After
 //  calling this, Sha1Initialised must be used to reuse the context.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void hidden
+void 
     Sha1Finalise
     (
         Sha1Context*                Context,
@@ -201,19 +200,19 @@ void hidden
     uint32_t    i;
     uint8_t     finalcount[8];
 
-    for( i=0; i<8; i++ )
+    for (i = 0; i < 8; i++)
     {
         finalcount[i] = (unsigned char)((Context->Count[(i >= 4 ? 0 : 1)]
          >> ((3-(i & 3)) * 8) ) & 255);  // Endian independent
     }
-    Sha1Update( Context, (uint8_t*)"\x80", 1 );
-    while( (Context->Count[0] & 504) != 448 )
+    Sha1Update(Context, (uint8_t*)"\x80", 1);
+    while ((Context->Count[0] & 504) != 448)
     {
-        Sha1Update( Context, (uint8_t*)"\0", 1 );
+        Sha1Update(Context, (uint8_t*)"\0", 1);
     }
 
-    Sha1Update( Context, finalcount, 8 );  // Should cause a Sha1TransformFunction()
-    for( i=0; i<SHA1_HASH_SIZE; i++ )
+    Sha1Update(Context, finalcount, 8);  // Should cause a Sha1TransformFunction()
+    for (i = 0; i < SHA1_HASH_SIZE; i++)
     {
         Digest->bytes[i] = (uint8_t)((Context->State[i>>2] >> ((3-(i & 3)) * 8) ) & 255);
     }
