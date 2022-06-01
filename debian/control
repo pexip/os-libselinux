@@ -1,25 +1,25 @@
 Source: libselinux
-VCS-Git: https://salsa.debian.org/selinux-team/libselinux.git
-VCS-Browser: https://salsa.debian.org/selinux-team/libselinux
+Vcs-Git: https://salsa.debian.org/selinux-team/libselinux.git
+Vcs-Browser: https://salsa.debian.org/selinux-team/libselinux
 Priority: optional
 Section: libs
 Maintainer: Pexip AS <packaging@pexip.com>
 XSBC-Pexip-Original-Maintainer: Debian SELinux maintainers <selinux-devel@lists.alioth.debian.org>
 XSBC-Pexip-Original-Uploaders: Laurent Bigonville <bigon@debian.org>,
            Russell Coker <russell@coker.com.au>
-Standards-Version: 4.1.4
-Build-Depends: debhelper (>= 10),
+Standards-Version: 4.5.1
+Build-Depends: debhelper-compat (= 13),
                dh-python <!nopython>,
                file,
                gem2deb (>= 0.5.0~) <!noruby>,
-               libsepol1-dev (>= 2.8),
-               libpcre3-dev,
+               libsepol1-dev (>= 3.1),
+               libpcre2-dev,
                pkg-config,
-               python-all-dev (>= 2.6.6-3~) <!nopython>,
                python3-all-dev <!nopython>,
                swig <!nopython> <!noruby>
 XS-Ruby-Versions: all
-Homepage: http://userspace.selinuxproject.org/
+Homepage: https://selinuxproject.org
+Rules-Requires-Root: no
 XS-Pexip-Upstream: http://deb.debian.org/debian/ bullseye
 
 Package: selinux-utils
@@ -63,8 +63,8 @@ Description: SELinux runtime shared libraries
 Package: libselinux1-dev
 Architecture: linux-any
 Depends: libselinux1 (= ${binary:Version}),
-         libsepol1-dev (>= 2.8),
-         libpcre3-dev,
+         libsepol1-dev (>= 3.1),
+         libpcre2-dev,
          ${misc:Depends}
 Section: libdevel
 Multi-Arch: same
@@ -109,6 +109,7 @@ Package: ruby-selinux
 Architecture: linux-any
 Depends: ruby | ruby-interpreter, ${misc:Depends}, ${shlibs:Depends}
 Section: ruby
+Multi-Arch: same
 Build-Profiles: <!noruby>
 Description: Ruby bindings to SELinux shared libraries
  This package provides the Ruby bindings needed for developing Ruby
@@ -120,26 +121,6 @@ Description: Ruby bindings to SELinux shared libraries
  operating system. These architectural components provide general
  support for the enforcement of many kinds of mandatory access control
  policies, including those based on the concepts of Type Enforcement,
- Role-based Access Control, and Multi-level Security.
-
-Package: python-selinux
-Architecture: linux-any
-Depends: ${misc:Depends}, ${python:Depends}, ${shlibs:Depends}
-Built-Using: ${Built-Using}
-Section: python
-Provides: ${python:Provides}
-Build-Profiles: <!nopython>
-Description: Python bindings to SELinux shared libraries
- This package provides the Python bindings needed for developing Python
- SELinux applications.
- .
- Security-enhanced Linux is a patch of the Linux kernel and a number
- of utilities with enhanced security functionality designed to add mandatory
- access controls to Linux. The Security-enhanced Linux kernel contains
- new architectural components originally developed to improve the security
- of the Flask operating system. These architectural components provide
- general support for the enforcement of many kinds of mandatory access
- control policies, including those based on the concepts of Type Enforcement,
  Role-based Access Control, and Multi-level Security.
 
 Package: python3-selinux

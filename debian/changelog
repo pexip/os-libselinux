@@ -1,3 +1,112 @@
+libselinux (3.1-3) unstable; urgency=medium
+
+  [ Christian Göttsche ]
+  * d/gitlab-ci.yml: Use Debian recipe
+  * d/README: Drop note about ancient SELinux mount point
+  * d/control: Bump debhelper compat to level 13
+  * d/control: Bump Standards-Version to 4.5.1 (no further changes)
+  * d/control: Update homepage
+  * d/rules: Enable -Wall and -Werror
+  * d/rules: Enable build hardening
+  * d/control: Drop cute fields
+
+  [ Laurent Bigonville ]
+  * Do not use gettid() for Bullseye and use syscall() instead (Closes: #979970)
+
+ -- Laurent Bigonville <bigon@debian.org>  Tue, 09 Feb 2021 10:19:50 +0100
+
+libselinux (3.1-2) unstable; urgency=medium
+
+  [ Laurent Bigonville ]
+  * debian/control: Bump libselinux1-dev dependency on libsepol1-dev to 3.1
+
+  [ Balint Reczey ]
+  * debian/libselinux1.symbols: Versioned symbols are available starting with
+    3.1~ (Closes: #965136)
+
+ -- Laurent Bigonville <bigon@debian.org>  Thu, 16 Jul 2020 18:28:55 +0200
+
+libselinux (3.1-1) unstable; urgency=medium
+
+  * New upstream release
+    - Bump libsepol1-dev build-dependency to >= 3.1 to match the release
+  * debian/rules: Add -fno-semantic-interposition to the CFLAGS
+
+ -- Laurent Bigonville <bigon@debian.org>  Tue, 14 Jul 2020 19:00:18 +0200
+
+libselinux (3.1~rc1-1) experimental; urgency=medium
+
+  [ You-Sheng Yang ]
+  * ci: enable ci
+
+  [ Laurent Bigonville ]
+  * New upstream version 3.1~rc1
+    - Bump libsepol1-dev build-dependency to >= 3.1~ to match the release
+    - Stop patching the build system and use PYTHON_SETUP_ARGS to set the
+      install-layout of the python module
+    - debian/libselinux1.symbols: The symbols are now versionized, update the
+      symbols accordingly. Remove the symbols that were never supposed to be
+      exposed. Add new selinux_flush_class_cache() symbol.
+  * DEP8: Add basic testing
+  * debian/rules: Make sure that the bindings are cleanup and that we can
+    build the package twice
+  * Cleanup and simplify the debian/rules file
+  * debian/rules: Add support to run make in parallel
+  * debian/control: Set Rules-Requires-Root: no
+  * debian/control: Bump Standards-Version to 4.5.0 (no further changes)
+  * Set debhelper-compat version in Build-Depends.
+  * Set upstream metadata fields: Bug-Database, Repository, Repository-
+    Browse
+
+  [ Helmut Grohne ]
+  * Fix clean with DEB_BUILD_PROFILES=nopython. (Closes: #946811)
+
+ -- Laurent Bigonville <bigon@debian.org>  Sat, 23 May 2020 12:31:19 +0200
+
+libselinux (3.0-1) unstable; urgency=medium
+
+  * New upstream release
+    - Bump libsepol1-dev build-dependency to >= 3.0 to match the release
+    - debian/libselinux1.symbols: Add newly exported symbols
+    - Drop d/p/python_nodefs.patch, not needed anymore and add
+      d/p/python_install-layout.patch to fix the installation layout for debian
+  * debian/control: Bump Standards-Version to 4.4.1 (no further changes)
+  * Bump debhelper compatibility to 12
+
+ -- Laurent Bigonville <bigon@debian.org>  Wed, 11 Dec 2019 14:38:39 +0100
+
+libselinux (2.9-3) unstable; urgency=medium
+
+  * Drop the python2 package (Closes: #936918)
+
+ -- Laurent Bigonville <bigon@debian.org>  Tue, 12 Nov 2019 10:42:53 +0100
+
+libselinux (2.9-2) unstable; urgency=medium
+
+  * Upload to unstable
+  * debian/control: Mark ruby-selinux as Multi-Arch: same
+
+ -- Laurent Bigonville <bigon@debian.org>  Sun, 07 Jul 2019 11:50:04 +0200
+
+libselinux (2.9-1) experimental; urgency=medium
+
+  [ Laurent Bigonville ]
+  * New upstream release
+    - Bump libsepol1-dev build-dependency to >= 2.9 to match the release
+  * debian/ruby.mk: Do not override RUBYLIBS anymore, upstream build system
+    seems to do the right thing now
+  * debian/control: Bump Standards-Version to 4.3.0 (no further changes)
+  * debian/watch: Adjust the URL
+  * debian/selinux-utils.install: Install manpages in Russian
+  * debian/libselinux1.symbols: Add new exported symbol
+  * debian/patches/python_nodefs.patch: Do not FTBFS if we have missing
+    symbols because we are not linking against the libpython
+
+  [ Michael Biebl ]
+  * Build against PCRE2. (Closes: #913921, LP: #1792544)
+
+ -- Laurent Bigonville <bigon@debian.org>  Sun, 17 Mar 2019 20:22:24 +0100
+
 libselinux (2.8-1+b1pexip2) pexip; urgency=medium
 
   * Rebuild in buster environment
@@ -546,7 +655,7 @@ libselinux (2.0.89-1) unstable; urgency=low
     + Add pkgconfig file. This eliminates a patch we have been carrying fr
       a while.
   * Update build dependency on libsepol so we pick up the typo fix in
-    libsepol. 
+    libsepol.
 
  -- Manoj Srivastava <srivasta@debian.org>  Tue, 17 Nov 2009 13:31:24 -0600
 
@@ -554,7 +663,7 @@ libselinux (2.0.88-1) unstable; urgency=low
 
   * New upstream point release
     + Rename and export selinux_reset_config()
-  
+
  -- Manoj Srivastava <srivasta@debian.org>  Sun, 25 Oct 2009 12:13:46 -0500
 
 libselinux (2.0.87-3) unstable; urgency=low
@@ -614,7 +723,7 @@ libselinux (2.0.85-3) unstable; urgency=low
 libselinux (2.0.85-2) unstable; urgency=low
 
   * Re-nenable building in parallel, which was disabled in the last
-    upload. 
+    upload.
 
  -- Manoj Srivastava <srivasta@debian.org>  Sat, 22 Aug 2009 18:42:50 -0500
 

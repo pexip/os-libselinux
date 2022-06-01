@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include <sys/stat.h>
+#include <sys/xattr.h>
 
 /*
  * regex.h/c were introduced to hold all dependencies on the regular
@@ -31,6 +32,9 @@
 #define SELINUX_COMPILED_FCONTEXT_MAX_VERS \
 	SELINUX_COMPILED_FCONTEXT_REGEX_ARCH
 
+/* Required selinux_restorecon and selabel_get_digests_all_partial_matches() */
+#define RESTORECON_PARTIAL_MATCH_DIGEST  "security.sehash"
+
 struct selabel_sub {
 	char *src;
 	int slen;
@@ -41,7 +45,7 @@ struct selabel_sub {
 /* A file security context specification. */
 struct spec {
 	struct selabel_lookup_rec lr;	/* holds contexts for lookup result */
-	char *regex_str;	/* regular expession string for diagnostics */
+	char *regex_str;	/* regular expression string for diagnostics */
 	char *type_str;		/* type string for diagnostic messages */
 	struct regex_data * regex; /* backend dependent regular expression data */
 	bool regex_compiled; /* bool to indicate if the regex is compiled */
@@ -336,13 +340,11 @@ static inline int next_entry(void *buf, struct mmap_area *fp, size_t bytes)
 	return 0;
 }
 
-static inline int compile_regex(struct saved_data *data, struct spec *spec,
-					    const char **errbuf)
+static inline int compile_regex(struct spec *spec, const char **errbuf)
 {
 	char *reg_buf, *anchored_regex, *cp;
 	struct regex_error_data error_data;
 	static char regex_error_format_buffer[256];
-	struct stem *stem_arr = data->stem_arr;
 	size_t len;
 	int rc;
 	bool regex_compiled;
@@ -351,8 +353,14 @@ static inline int compile_regex(struct saved_data *data, struct spec *spec,
 	 * init_routine does not take a parameter, it's not possible
 	 * to use, so we generate the same effect with atomics and a
 	 * mutex */
+#ifdef __ATOMIC_RELAXED
 	regex_compiled =
 		__atomic_load_n(&spec->regex_compiled, __ATOMIC_ACQUIRE);
+#else
+	/* GCC <4.7 */
+	__sync_synchronize();
+	regex_compiled = spec->regex_compiled;
+#endif
 	if (regex_compiled) {
 		return 0; /* already done */
 	}
@@ -360,18 +368,20 @@ static inline int compile_regex(struct saved_data *data, struct spec *spec,
 	__pthread_mutex_lock(&spec->regex_lock);
 	/* Check if another thread compiled the regex while we waited
 	 * on the mutex */
+#ifdef __ATOMIC_RELAXED
 	regex_compiled =
 		__atomic_load_n(&spec->regex_compiled, __ATOMIC_ACQUIRE);
+#else
+	/* GCC <4.7 */
+	__sync_synchronize();
+	regex_compiled = spec->regex_compiled;
+#endif
 	if (regex_compiled) {
 		__pthread_mutex_unlock(&spec->regex_lock);
 		return 0;
 	}
 
-	/* Skip the fixed stem. */
 	reg_buf = spec->regex_str;
-	if (spec->stem_id >= 0)
-		reg_buf += stem_arr[spec->stem_id].len;
-
 	/* Anchor the regular expression. */
 	len = strlen(reg_buf);
 	cp = anchored_regex = malloc(len + 3);
@@ -404,7 +414,13 @@ static inline int compile_regex(struct saved_data *data, struct spec *spec,
 	}
 
 	/* Done. */
+#ifdef __ATOMIC_RELAXED
 	__atomic_store_n(&spec->regex_compiled, true, __ATOMIC_RELEASE);
+#else
+	/* GCC <4.7 */
+	spec->regex_compiled = true;
+	__sync_synchronize();
+#endif
 	__pthread_mutex_unlock(&spec->regex_lock);
 	return 0;
 }
@@ -483,7 +499,7 @@ static inline int process_line(struct selabel_handle *rec,
 	data->nspec++;
 
 	if (rec->validating
-			&& compile_regex(data, &spec_arr[nspec], &errbuf)) {
+			&& compile_regex(&spec_arr[nspec], &errbuf)) {
 		COMPAT_LOG(SELINUX_ERROR,
 			   "%s:  line %u has invalid regex %s:  %s\n",
 			   path, lineno, regex, errbuf);

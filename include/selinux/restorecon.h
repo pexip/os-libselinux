@@ -27,81 +27,91 @@ extern int selinux_restorecon(const char *pathname,
  * restorecon_flags options
  */
 /*
- * Force the checking of labels even if the stored SHA1
- * digest matches the specfiles SHA1 digest.
+ * Force the checking of labels even if the stored SHA1 digest
+ * matches the specfiles SHA1 digest (requires CAP_SYS_ADMIN).
  */
-#define SELINUX_RESTORECON_IGNORE_DIGEST		0x0001
+#define SELINUX_RESTORECON_IGNORE_DIGEST		0x00001
 /*
  * Do not change file labels.
  */
-#define SELINUX_RESTORECON_NOCHANGE			0x0002
+#define SELINUX_RESTORECON_NOCHANGE			0x00002
 /*
- * If set set change file label to that in spec file.
- * If not only change type component to that in spec file.
+ * If set, change file label to that in spec file.
+ * If not, only change type component to that in spec file.
  */
-#define SELINUX_RESTORECON_SET_SPECFILE_CTX		0x0004
+#define SELINUX_RESTORECON_SET_SPECFILE_CTX		0x00004
 /*
  * Recursively descend directories.
  */
-#define SELINUX_RESTORECON_RECURSE			0x0008
+#define SELINUX_RESTORECON_RECURSE			0x00008
 /*
  * Log changes to selinux log. Note that if VERBOSE and
  * PROGRESS are set, then PROGRESS will take precedence.
  */
-#define SELINUX_RESTORECON_VERBOSE			0x0010
+#define SELINUX_RESTORECON_VERBOSE			0x00010
 /*
  * If SELINUX_RESTORECON_PROGRESS is true and
  * SELINUX_RESTORECON_MASS_RELABEL is true, then output approx % complete,
  * else output the number of files in 1k blocks processed to stdout.
  */
-#define SELINUX_RESTORECON_PROGRESS			0x0020
+#define SELINUX_RESTORECON_PROGRESS			0x00020
 /*
  * Convert passed-in pathname to canonical pathname.
  */
-#define SELINUX_RESTORECON_REALPATH			0x0040
+#define SELINUX_RESTORECON_REALPATH			0x00040
 /*
  * Prevent descending into directories that have a different
  * device number than the pathname from which the descent began.
  */
-#define SELINUX_RESTORECON_XDEV				0x0080
+#define SELINUX_RESTORECON_XDEV				0x00080
 /*
  * Attempt to add an association between an inode and a specification.
  * If there is already an association for the inode and it conflicts
  * with the specification, then use the last matching specification.
  */
-#define SELINUX_RESTORECON_ADD_ASSOC			0x0100
+#define SELINUX_RESTORECON_ADD_ASSOC			0x00100
 /*
  * Abort on errors during the file tree walk.
  */
-#define SELINUX_RESTORECON_ABORT_ON_ERROR		0x0200
+#define SELINUX_RESTORECON_ABORT_ON_ERROR		0x00200
 /*
  * Log any label changes to syslog.
  */
-#define SELINUX_RESTORECON_SYSLOG_CHANGES		0x0400
+#define SELINUX_RESTORECON_SYSLOG_CHANGES		0x00400
 /*
  * Log what spec matched each file.
  */
-#define SELINUX_RESTORECON_LOG_MATCHES			0x0800
+#define SELINUX_RESTORECON_LOG_MATCHES			0x00800
 /*
  * Ignore files that do not exist.
  */
-#define SELINUX_RESTORECON_IGNORE_NOENTRY		0x1000
+#define SELINUX_RESTORECON_IGNORE_NOENTRY		0x01000
 /*
  * Do not read /proc/mounts to obtain a list of non-seclabel
  * mounts to be excluded from relabeling checks.
  */
-#define SELINUX_RESTORECON_IGNORE_MOUNTS		0x2000
+#define SELINUX_RESTORECON_IGNORE_MOUNTS		0x02000
 /*
  * Set if there is a mass relabel required.
  * See SELINUX_RESTORECON_PROGRESS flag for details.
  */
-#define SELINUX_RESTORECON_MASS_RELABEL			0x4000
+#define SELINUX_RESTORECON_MASS_RELABEL			0x04000
+/*
+ * Set if no digest is to be read or written (as only processes
+ * running with CAP_SYS_ADMIN can read/write digests).
+ */
+#define SELINUX_RESTORECON_SKIP_DIGEST			0x08000
+
+/*
+ * Set to treat conflicting specifications as errors.
+ */
+#define SELINUX_RESTORECON_CONFLICT_ERROR		0x10000
 
 /**
  * selinux_restorecon_set_sehandle - Set the global fc handle.
  * @hndl: specifies handle to set as the global fc handle.
  *
- * Called by a process that has already called selabel_open(3) with it's
+ * Called by a process that has already called selabel_open(3) with its
  * required parameters, or if selinux_restorecon_default_handle(3) has been
  * called to set the default selabel_open(3) parameters.
  */
@@ -110,7 +120,7 @@ extern void selinux_restorecon_set_sehandle(struct selabel_handle *hndl);
 /**
  * selinux_restorecon_default_handle - Sets default selabel_open(3) parameters
  *				       to use the currently loaded policy and
- *				       file_contexts, also requests the digest.
+ *				       file_contexts.
  *
  * Return value is the created handle on success or NULL with @errno set on
  * failure.
@@ -134,12 +144,12 @@ extern void selinux_restorecon_set_exclude_list(const char **exclude_list);
 extern int selinux_restorecon_set_alt_rootpath(const char *alt_rootpath);
 
 /**
- * selinux_restorecon_xattr - Read/remove RESTORECON_LAST xattr entries.
+ * selinux_restorecon_xattr - Read/remove security.sehash xattr entries.
  * @pathname: specifies directory path to check.
  * @xattr_flags: specifies the actions to be performed.
  * @xattr_list: a linked list of struct dir_xattr structures containing
  *              the directory, digest and result of the action on the
- *              RESTORECON_LAST entry.
+ *              security.sehash entry.
  *
  * selinux_restorecon_xattr(3) will automatically call
  * selinux_restorecon_default_handle(3) and selinux_restorecon_set_sehandle(3)

@@ -3,79 +3,86 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-## Figure out some variables
-DEB_HOST_ARCH_OS	?= $(shell dpkg-architecture -qDEB_HOST_ARCH_OS)
-DEB_HOST_GNU_CPU	?= $(shell dpkg-architecture -qDEB_HOST_GNU_CPU)
-DEB_HOST_GNU_TYPE	?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEB_HOST_MULTIARCH	?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
-PKG_CONFIG		?= $(DEB_HOST_GNU_TYPE)-pkg-config
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+include /usr/share/dpkg/architecture.mk
+# for cross compilation
+ifneq ($(DEB_HOST_GNU_TYPE),$(DEB_BUILD_GNU_TYPE))
+export CC := $(DEB_HOST_GNU_TYPE)-gcc
+export PKG_CONFIG := $(DEB_HOST_GNU_TYPE)-pkg-config
+endif
+
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+    NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+    MAKEFLAGS += -j$(NUMJOBS)
+endif
 
 DOPACKAGES = $(shell dh_listpackages)
 
 BUILT_USING=$(shell dpkg-query -f '$${source:Package} (= $${source:Version}), ' -W "libsepol1-dev")
 
-## Default target
-binary:
-
-## Sanity check
-ifneq ($(DEB_HOST_ARCH_OS),linux)
-$(error This is a linux only package. Aborting build.)
-endif
-
+# Upstream recommends using this flag
+export DEB_CFLAGS_MAINT_APPEND = -fno-semantic-interposition
 ## The build system doesn't use CPPFLAGS, pass them to CFLAGS to enable the
-## missing (hardening) flags.
-export DEB_CFLAGS_MAINT_APPEND = $(shell dpkg-buildflags --get CPPFLAGS)
+## missing (hardening) flags. Also enable Wall and Wextra to spot basic irregularities.
+export DEB_CFLAGS_MAINT_APPEND += $(shell dpkg-buildflags --get CPPFLAGS) -Wall -Wextra
 
-## Unconditionally run debhelper command targets
-.PHONY: FORCE
-FORCE:
-
-## By default, pass everything through debhelper automatically
-export DH_OPTIONS
 DH_ADDONS =
-ifneq ($(filter python-selinux,$(DOPACKAGES)),)
-DH_ADDONS += --with=python2
-endif
 ifneq ($(filter python3-selinux,$(DOPACKAGES)),)
+PY3VERSIONS = $(shell py3versions -rv)
 DH_ADDONS += --with=python3
 endif
 ifneq ($(filter ruby-selinux,$(DOPACKAGES)),)
+RUBY_VERSIONS := $(shell dh_ruby --print-supported)
 DH_ADDONS += --with=ruby
 endif
-%: FORCE
+
+%:
 	@dh $@ $(DH_ADDONS)
 
-## Don't try to rebuild the debian/rules file
-debian/rules:
-	@touch $@
-
 ## Set up some variables to be passed to the upstream Makefile
-extra_make_args = ARCH=$(DEB_HOST_GNU_CPU)
-extra_make_args += CC=$(DEB_HOST_GNU_TYPE)-gcc
-extra_make_args += PKG_CONFIG=$(PKG_CONFIG)
-override_dh_auto_build: FORCE
-	+$(MAKE) $(extra_make_args) all
-
-## Work around the very limited SELinux build-system
-DESTDIR = $(CURDIR)/debian/tmp
-base_extra_install_args  = $(extra_make_args)
-base_extra_install_args += DESTDIR=$(DESTDIR)
-extra_install_args = $(base_extra_install_args) LIBDIR=/usr/lib/$(DEB_HOST_MULTIARCH)
-extra_install_args += SHLIBDIR=/lib/$(DEB_HOST_MULTIARCH)
-python_extra_install_args = $(base_extra_install_args) LIBDIR=/usr/lib
-
-override_dh_auto_install: FORCE
-	+$(MAKE) $(extra_install_args) install
-ifneq ($(filter python-selinux python3-selinux,$(DOPACKAGES)),)
-	+$(MAKE) $(python_extra_install_args) -f debian/python.mk
+extra_make_args = ARCH=$(patsubst i%86,i386,$(DEB_HOST_GNU_CPU))
+extra_make_args += USE_PCRE2=y
+override_dh_auto_build:
+	$(MAKE) all $(extra_make_args)
+ifneq ($(filter python3-selinux,$(DOPACKAGES)),)
+	set -e; for version in $(PY3VERSIONS); do        \
+	  $(MAKE) pywrap $(extra_make_args) PYTHON=python$$version; \
+	done;
 endif
 ifneq ($(filter ruby-selinux,$(DOPACKAGES)),)
-	+$(MAKE) $(extra_install_args) -f debian/ruby.mk
+	set -e; for version in $(RUBY_VERSIONS); do      \
+	  $(MAKE) rubywrap $(extra_make_args) RUBY=$$version; \
+	done;
 endif
 
-## Generate a hard error for any upstream files we don't install
-override_dh_missing: FORCE
-	dh_missing --fail-missing
+override_dh_auto_install:
+	$(MAKE) install $(extra_make_args) DESTDIR="${CURDIR}/debian/tmp" \
+	  LIBDIR=/usr/lib/$(DEB_HOST_MULTIARCH) \
+	  SHLIBDIR=/lib/$(DEB_HOST_MULTIARCH)
+ifneq ($(filter python3-selinux,$(DOPACKAGES)),)
+	set -e; for version in $(PY3VERSIONS); do \
+	  $(MAKE) install-pywrap $(extra_make_args) PYTHON=python$$version DESTDIR="${CURDIR}/debian/tmp" PYTHON_SETUP_ARGS=--install-layout=deb; \
+	done;
+endif
+ifneq ($(filter ruby-selinux,$(DOPACKAGES)),)
+	set -e; for version in $(RUBY_VERSIONS); do \
+	  $(MAKE) install-rubywrap $(extra_make_args) RUBY=$$version DESTDIR="${CURDIR}/debian/tmp"; \
+	done;
+endif
+
+override_dh_auto_clean:
+	$(MAKE) distclean $(extra_make_args) PYTHON=true
+ifneq ($(filter python3-selinux,$(DOPACKAGES)),)
+	set -e; for version in $(PY3VERSIONS); do         \
+	  $(MAKE) clean-pywrap $(extra_make_args) PYTHON=python$$version;  \
+	done;
+endif
+ifneq ($(filter ruby-selinux,$(DOPACKAGES)),)
+	set -e; for version in $(RUBY_VERSIONS); do      \
+	  $(MAKE) clean-rubywrap $(extra_make_args) RUBY=$$version; \
+	done;
+endif
 
 override_dh_gencontrol:
 	dh_gencontrol -- -VBuilt-Using="$(BUILT_USING)"

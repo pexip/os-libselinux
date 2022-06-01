@@ -8,13 +8,17 @@
 extern "C" {
 #endif
 
-/* Return 1 if we are running on a SELinux kernel, or 0 if not or -1 if we get an error. */
+/* Return 1 if we are running on a SELinux kernel, or 0 otherwise. */
 extern int is_selinux_enabled(void);
 /* Return 1 if we are running on a SELinux MLS kernel, or 0 otherwise. */
 extern int is_selinux_mls_enabled(void);
 
 /* No longer used; here for compatibility with legacy callers. */
-typedef char *security_context_t;
+typedef char *security_context_t
+#ifdef __GNUC__
+__attribute__ ((deprecated))
+#endif
+;
 
 /* Free the memory allocated for a context by any of the below get* calls. */
 extern void freecon(char * con);
@@ -246,14 +250,31 @@ extern int security_compute_member_raw(const char * scon,
 				       security_class_t tclass,
 				       char ** newcon);
 
-/* Compute the set of reachable user contexts and set *con to refer to 
-   the NULL-terminated array of contexts.  Caller must free via freeconary. */
+/*
+ * Compute the set of reachable user contexts and set *con to refer to
+ * the NULL-terminated array of contexts.  Caller must free via freeconary.
+ * These interfaces are deprecated.  Use get_ordered_context_list() or
+ * one of its variant interfaces instead.
+ */
 extern int security_compute_user(const char * scon,
 				 const char *username,
 				 char *** con);
 extern int security_compute_user_raw(const char * scon,
 				     const char *username,
 				     char *** con);
+
+/* Validate a transition. This determines whether a transition from scon to newcon
+   using tcon as the target for object class tclass is valid in the loaded policy.
+   This checks against the mlsvalidatetrans and validatetrans constraints in the loaded policy.
+   Returns 0 if allowed and -1 if an error occurred with errno set */
+extern int security_validatetrans(const char *scon,
+				  const char *tcon,
+				  security_class_t tclass,
+				  const char *newcon);
+extern int security_validatetrans_raw(const char *scon,
+				      const char *tcon,
+				      security_class_t tclass,
+				      const char *newcon);
 
 /* Load a policy configuration. */
 extern int security_load_policy(void *data, size_t len);
@@ -273,11 +294,7 @@ extern int security_get_initial_context_raw(const char *name,
  * manipulating it as needed for current boolean settings and/or local 
  * definitions, and then calling security_load_policy to load it.
  *
- * 'preservebools' is a boolean flag indicating whether current 
- * policy boolean values should be preserved into the new policy (if 1) 
- * or reset to the saved policy settings (if 0).  The former case is the
- * default for policy reloads, while the latter case is an option for policy
- * reloads but is primarily for the initial policy load.
+ * 'preservebools' is no longer supported, set to 0.
  */
 extern int selinux_mkload_policy(int preservebools);
 
@@ -303,14 +320,20 @@ typedef struct {
 	char *name;
 	int value;
 } SELboolean;
-/* save a list of booleans in a single transaction.  */
+/* save a list of booleans in a single transaction. 'permanent' is no
+ * longer supported, set to 0.
+ */
 extern int security_set_boolean_list(size_t boolcnt,
 				     SELboolean * boollist, int permanent);
 
-/* Load policy boolean settings.
-   Path may be NULL, in which case the booleans are loaded from
-   the active policy boolean configuration file. */
-extern int security_load_booleans(char *path);
+/* Load policy boolean settings. Deprecated as local policy booleans no
+ * longer supported. Will always return -1.
+ */
+extern int security_load_booleans(char *path)
+#ifdef __GNUC__
+__attribute__ ((deprecated))
+#endif
+;
 
 /* Check the validity of a security context. */
 extern int security_check_context(const char * con);
@@ -328,7 +351,10 @@ extern int security_getenforce(void);
 /* Set the enforce flag value. */
 extern int security_setenforce(int value);
 
-/* Get the behavior for undefined classes/permissions */
+/* Get the load-time behavior for undefined classes/permissions */
+extern int security_reject_unknown(void);
+
+/* Get the runtime behavior for undefined classes/permissions */
 extern int security_deny_unknown(void);
 
 /* Get the checkreqprot value */
@@ -404,6 +430,9 @@ extern int security_av_string(security_class_t tclass,
 /* Display an access vector in a string representation. */
 extern void print_access_vector(security_class_t tclass, access_vector_t av);
 
+/* Flush the SELinux class cache, e.g. upon a policy reload. */
+extern void selinux_flush_class_cache(void);
+
 /* Set the function used by matchpathcon_init when displaying
    errors about the file_contexts configuration.  If not set,
    then this defaults to fprintf(stderr, fmt, ...). */
@@ -440,14 +469,22 @@ extern void set_matchpathcon_flags(unsigned int flags);
    function also checks for a 'path'.homedirs file and 
    a 'path'.local file and loads additional specifications 
    from them if present. */
-extern int matchpathcon_init(const char *path);
+extern int matchpathcon_init(const char *path)
+#ifdef __GNUC__
+   __attribute__ ((deprecated("Use selabel_open with backend SELABEL_CTX_FILE")))
+#endif
+;
 
 /* Same as matchpathcon_init, but only load entries with
    regexes that have stems that are prefixes of 'prefix'. */
 extern int matchpathcon_init_prefix(const char *path, const char *prefix);
 
 /* Free the memory allocated by matchpathcon_init. */
-extern void matchpathcon_fini(void);
+extern void matchpathcon_fini(void)
+#ifdef __GNUC__
+   __attribute__ ((deprecated("Use selabel_close")))
+#endif
+;
 
 /* Resolve all of the symlinks and relative portions of a pathname, but NOT
  * the final component (same a realpath() unless the final component is a
@@ -461,7 +498,11 @@ extern int realpath_not_final(const char *name, char *resolved_path);
    If matchpathcon_init has not already been called, then this function
    will call it upon its first invocation with a NULL path. */
 extern int matchpathcon(const char *path,
-			mode_t mode, char ** con);
+			mode_t mode, char ** con)
+#ifdef __GNUC__
+	__attribute__ ((deprecated("Use selabel_lookup instead")))
+#endif
+;
 
 /* Same as above, but return a specification index for 
    later use in a matchpathcon_filespec_add() call - see below. */
@@ -553,9 +594,19 @@ extern const char *selinux_systemd_contexts_path(void);
 extern const char *selinux_contexts_path(void);
 extern const char *selinux_securetty_types_path(void);
 extern const char *selinux_booleans_subs_path(void);
-extern const char *selinux_booleans_path(void);
+/* Deprecated as local policy booleans no longer supported. */
+extern const char *selinux_booleans_path(void)
+#ifdef __GNUC__
+__attribute__ ((deprecated))
+#endif
+;
 extern const char *selinux_customizable_types_path(void);
-extern const char *selinux_users_path(void);
+/* Deprecated as policy ./users no longer supported. */
+extern const char *selinux_users_path(void)
+#ifdef __GNUC__
+__attribute__ ((deprecated))
+#endif
+;
 extern const char *selinux_usersconf_path(void);
 extern const char *selinux_translations_path(void);
 extern const char *selinux_colors_path(void);
@@ -583,8 +634,17 @@ extern int selinux_check_access(const char * scon, const char * tcon, const char
 
 /* Check a permission in the passwd class.
    Return 0 if granted or -1 otherwise. */
-extern int selinux_check_passwd_access(access_vector_t requested);
-extern int checkPasswdAccess(access_vector_t requested);
+extern int selinux_check_passwd_access(access_vector_t requested)
+#ifdef __GNUC__
+  __attribute__ ((deprecated("Use selinux_check_access")))
+#endif
+;
+
+extern int checkPasswdAccess(access_vector_t requested)
+#ifdef __GNUC__
+   __attribute__ ((deprecated("Use selinux_check_access")))
+#endif
+;
 
 /* Check if the tty_context is defined as a securetty
    Return 0 if secure, < 0 otherwise. */
@@ -594,13 +654,13 @@ extern int selinux_check_securetty_context(const char * tty_context);
    Normally, this is determined automatically during libselinux 
    initialization, but this is not always possible, e.g. for /sbin/init
    which performs the initial mount of selinuxfs. */
-void set_selinuxmnt(const char *mnt);
+extern void set_selinuxmnt(const char *mnt);
 
 /* Check if selinuxfs exists as a kernel filesystem */
-int selinuxfs_exists(void);
+extern int selinuxfs_exists(void);
 
 /* clear selinuxmnt variable and free allocated memory */
-void fini_selinuxmnt(void);
+extern void fini_selinuxmnt(void);
 
 /* Set an appropriate security context based on the filename of a helper
  * program, falling back to a new context with the specified type. */
@@ -610,7 +670,11 @@ extern int setexecfilecon(const char *filename, const char *fallback_type);
 /* Execute a helper for rpm in an appropriate security context. */
 extern int rpm_execcon(unsigned int verified,
 		       const char *filename,
-		       char *const argv[], char *const envp[]);
+		       char *const argv[], char *const envp[])
+#ifdef __GNUC__
+	__attribute__((deprecated("Use setexecfilecon and execve")))
+#endif
+;
 #endif
 
 /* Returns whether a file context is customizable, and should not 
