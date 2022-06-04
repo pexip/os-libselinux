@@ -95,10 +95,10 @@ static int init(struct selabel_handle *rec, const struct selinux_opt *opts,
 	__fsetlocking(fp, FSETLOCKING_BYCALLER);
 
 	if (fstat(fileno(fp), &sb) < 0)
-		return -1;
+		goto finish;
 	if (!S_ISREG(sb.st_mode)) {
 		errno = EINVAL;
-		return -1;
+		goto finish;
 	}
 	rec->spec_file = strdup(path);
 
@@ -119,7 +119,6 @@ static int init(struct selabel_handle *rec, const struct selinux_opt *opts,
 			if (process_line(path, line_buf, pass, ++lineno, rec))
 				goto finish;
 		}
-		lineno = 0;
 
 		if (pass == 0) {
 			if (data->nspec == 0) {

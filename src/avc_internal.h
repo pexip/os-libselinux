@@ -32,6 +32,10 @@ extern void (*avc_func_get_lock) (void *);
 extern void (*avc_func_release_lock) (void *);
 extern void (*avc_func_free_lock) (void *);
 
+/* selinux status processing for netlink and sestatus */
+extern int avc_process_setenforce(int enforcing);
+extern int avc_process_policyload(uint32_t seqno);
+
 static inline void set_callbacks(const struct avc_memory_callback *mem_cb,
 				 const struct avc_log_callback *log_cb,
 				 const struct avc_thread_callback *thread_cb,
@@ -81,10 +85,12 @@ static inline void avc_free(void *ptr)
 
 /* this is a macro in order to use the variadic capability. */
 #define avc_log(type, format...) \
-  if (avc_func_log) \
-    avc_func_log(format); \
-  else \
-    selinux_log(type, format);
+  do { \
+    if (avc_func_log) \
+      avc_func_log(format); \
+    else \
+      selinux_log(type, format); \
+  } while (0)
 
 static inline void avc_suppl_audit(void *ptr, security_class_t class,
 				   char *buf, size_t len)
@@ -133,14 +139,18 @@ static inline void avc_free_lock(void *lock)
 #ifdef AVC_CACHE_STATS
 
 #define avc_cache_stats_incr(field) \
-  cache_stats.field ++;
+  do { \
+    cache_stats.field ++; \
+  } while (0)
 #define avc_cache_stats_add(field, num) \
-  cache_stats.field += num;
+  do { \
+    cache_stats.field += num; \
+  } while (0)
 
 #else
 
-#define avc_cache_stats_incr(field)
-#define avc_cache_stats_add(field, num)
+#define avc_cache_stats_incr(field) do {} while (0)
+#define avc_cache_stats_add(field, num) do {} while (0)
 
 #endif
 

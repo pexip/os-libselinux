@@ -39,7 +39,7 @@ int selinux_check_access(const char *scon, const char *tcon, const char *class, 
 	if (rc < 0)
 		return rc;
 
-	(void) avc_netlink_check_nb();
+	(void) selinux_status_updated();
 
        sclass = string_to_security_class(class);
        if (sclass == 0) {
@@ -78,7 +78,9 @@ static int selinux_check_passwd_access_internal(access_vector_t requested)
 		passwd_class = string_to_security_class("passwd");
 		if (passwd_class == 0) {
 			freecon(user_context);
-			return 0;
+			if (security_deny_unknown() == 0)
+				return 0;
+			return -1;
 		}
 
 		retval = security_compute_av_raw(user_context,
