@@ -20,7 +20,7 @@ Build-Depends: debhelper-compat (= 13),
 XS-Ruby-Versions: all
 Homepage: https://selinuxproject.org
 Rules-Requires-Root: no
-XS-Pexip-Upstream: http://deb.debian.org/debian/ bullseye
+XS-Pexip-Upstream: http://deb.debian.org/debian/ bookworm
 
 Package: selinux-utils
 Architecture: linux-any
