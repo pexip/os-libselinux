@@ -77,7 +77,8 @@ int main(int argc, char **argv)
 	hnd = selabel_open(SELABEL_CTX_FILE, selabel_option, 2);
 	if (!hnd) {
 		fprintf(stderr, "ERROR: selabel_open - Could not obtain "
-							     "handle.\n");
+							     "handle:  %s\n",
+							     strerror(errno));
 		return -1;
 	}
 
@@ -128,7 +129,7 @@ int main(int argc, char **argv)
 					printf("No SHA1 digest available for: %s\n",
 					       ftsent->fts_path);
 					printf("as file_context entry is \"<<none>>\"\n");
-					break;
+					goto cleanup;
 				}
 
 				printf("The file_context entries for: %s\n",
@@ -149,11 +150,11 @@ int main(int argc, char **argv)
 							xattr_digest[i]);
 					printf("%s\n", sha1_buf);
 				}
-
-				free(xattr_digest);
-				free(calculated_digest);
-				free(sha1_buf);
 			}
+			cleanup:
+			free(xattr_digest);
+			free(calculated_digest);
+			free(sha1_buf);
 			break;
 		}
 		default:

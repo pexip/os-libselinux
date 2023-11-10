@@ -47,7 +47,7 @@ static mode_t string_to_mode(char *s)
 		return S_IFSOCK;
 	case 'f':
 		return S_IFREG;
-	};
+	}
 	return 0;
 }
 
@@ -117,7 +117,8 @@ int main(int argc, char **argv)
 	hnd = selabel_open(SELABEL_CTX_FILE, options, 2);
 	if (!hnd) {
 		fprintf(stderr, "ERROR: selabel_open - Could not obtain "
-							     "handle.\n");
+							     "handle:  %s\n",
+							     strerror(errno));
 		rc = -1;
 		goto out;
 	}

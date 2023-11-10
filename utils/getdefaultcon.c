@@ -28,12 +28,15 @@ int main(int argc, char **argv)
 	while ((opt = getopt(argc, argv, "l:r:s:v")) > 0) {
 		switch (opt) {
 		case 'l':
+			free(level);
 			level = strdup(optarg);
 			break;
 		case 'r':
+			free(role);
 			role = strdup(optarg);
 			break;
 		case 's':
+			free(service);
 			service = strdup(optarg);
 			break;
 		case 'v':
@@ -59,11 +62,16 @@ int main(int argc, char **argv)
 	/* If a context wasn't passed, use the current context. */
 	if (((argc - optind) < 2)) {
 		if (getcon(&cur_context) < 0) {
-			fprintf(stderr, "Couldn't get current context.\n");
+			fprintf(stderr, "Couldn't get current context:  %s\n", strerror(errno));
 			return 2;
 		}
 	} else
 		cur_context = argv[optind + 1];
+
+	if (security_check_context(cur_context)) {
+		fprintf(stderr, "%s:  invalid from context '%s'\n", argv[0], cur_context);
+		return 3;
+	}
 
 	if ((ret = getseuser(user, service, &seuser, &dlevel)) == 0) {
 		if (! level) level=dlevel;

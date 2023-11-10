@@ -44,7 +44,6 @@ endif
 override CFLAGS += -I../include -D_GNU_SOURCE $(DISABLE_FLAGS) $(PCRE_CFLAGS)
 override LDFLAGS += -L../src
 override LDLIBS += -lselinux $(FTS_LDLIBS)
-PCRE_LDLIBS ?= -lpcre
 
 ifeq ($(ANDROID_HOST),y)
 TARGETS=sefcontext_compile
@@ -52,11 +51,7 @@ else
 TARGETS=$(patsubst %.c,%,$(sort $(wildcard *.c)))
 endif
 
-sefcontext_compile: LDLIBS += $(PCRE_LDLIBS) ../src/libselinux.a -lsepol
-
-sefcontext_compile: sefcontext_compile.o ../src/regex.o
-
-matchpathcon: CFLAGS += -Wno-deprecated-declarations
+sefcontext_compile: LDLIBS += ../src/libselinux.a $(PCRE_LDLIBS) -lsepol
 
 all: $(TARGETS)
 
