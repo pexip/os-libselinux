@@ -19,7 +19,7 @@ endif
 
 DOPACKAGES = $(shell dh_listpackages)
 
-BUILT_USING=$(shell dpkg-query -f '$${source:Package} (= $${source:Version}), ' -W "libsepol1-dev")
+BUILT_USING=$(shell dpkg-query -f '$${source:Package} (= $${source:Version}), ' -W "libsepol-dev")
 
 # Upstream recommends using this flag
 export DEB_CFLAGS_MAINT_APPEND = -fno-semantic-interposition

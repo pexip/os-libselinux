@@ -188,6 +188,9 @@ static int load_mmap(FILE *fp, size_t len, struct selabel_handle *rec,
 
 		str_buf[entry_len] = '\0';
 		if ((strcmp(str_buf, reg_version) != 0)) {
+			COMPAT_LOG(SELINUX_ERROR,
+				"Regex version mismatch, expected: %s actual: %s\n",
+				reg_version, str_buf);
 			free(str_buf);
 			return -1;
 		}
@@ -371,7 +374,7 @@ end_arch_check:
 
 		if (stem_id < 0 || stem_id >= (int32_t)stem_map_len)
 			spec->stem_id = -1;
-		 else
+		else
 			spec->stem_id = stem_map[stem_id];
 
 		/* retrieve the hasMetaChars bit */
@@ -756,6 +759,10 @@ static int init(struct selabel_handle *rec, const struct selinux_opt *opts,
 	}
 
 #endif
+
+	if (!path)
+		goto finish;
+
 	rec->spec_file = strdup(path);
 
 	/*
@@ -845,7 +852,7 @@ static void closef(struct selabel_handle *rec)
 // Finds all the matches of |key| in the given context. Returns the result in
 // the allocated array and updates the match count. If match_count is NULL,
 // stops early once the 1st match is found.
-static const struct spec **lookup_all(struct selabel_handle *rec,
+static struct spec **lookup_all(struct selabel_handle *rec,
                                       const char *key,
                                       int type,
                                       bool partial,
@@ -854,13 +861,14 @@ static const struct spec **lookup_all(struct selabel_handle *rec,
 	struct saved_data *data = (struct saved_data *)rec->data;
 	struct spec *spec_arr = data->spec_arr;
 	int i, rc, file_stem;
+	size_t len;
 	mode_t mode = (mode_t)type;
 	char *clean_key = NULL;
 	const char *prev_slash, *next_slash;
 	unsigned int sofar = 0;
 	char *sub = NULL;
 
-	const struct spec **result = NULL;
+	struct spec **result = NULL;
 	if (match_count) {
 		*match_count = 0;
 		result = calloc(data->nspec, sizeof(struct spec*));
@@ -894,6 +902,27 @@ static const struct spec **lookup_all(struct selabel_handle *rec,
 		key = clean_key;
 	}
 
+	/* remove trailing slash */
+	len = strlen(key);
+	if (len == 0) {
+		errno = EINVAL;
+		goto finish;
+	}
+
+	if (len > 1 && key[len - 1] == '/') {
+		/* reuse clean_key from above if available */
+		if (!clean_key) {
+			clean_key = (char *) malloc(len);
+			if (!clean_key)
+				goto finish;
+
+			memcpy(clean_key, key, len - 1);
+		}
+
+		clean_key[len - 1] = '\0';
+		key = clean_key;
+	}
+
 	sub = selabel_sub_key(data, key);
 	if (sub)
 		key = sub;
@@ -922,7 +951,12 @@ static const struct spec **lookup_all(struct selabel_handle *rec,
 			rc = regex_match(spec->regex, key, partial);
 			if (rc == REGEX_MATCH || (partial && rc == REGEX_MATCH_PARTIAL)) {
 				if (rc == REGEX_MATCH) {
-					spec->matches++;
+#ifdef __ATOMIC_RELAXED
+					__atomic_store_n(&spec->any_matches,
+							 true, __ATOMIC_RELAXED);
+#else
+#error "Please use a compiler that supports __atomic builtins"
+#endif
 				}
 
 				if (strcmp(spec_arr[i].lr.ctx_raw, "<<none>>") == 0) {
@@ -965,11 +999,11 @@ static struct spec *lookup_common(struct selabel_handle *rec,
                                   const char *key,
                                   int type,
                                   bool partial) {
-	const struct spec **matches = lookup_all(rec, key, type, partial, NULL);
+	struct spec **matches = lookup_all(rec, key, type, partial, NULL);
 	if (!matches) {
 		return NULL;
 	}
-	struct spec *result = (struct spec*)matches[0];
+	struct spec *result = matches[0];
 	free(matches);
 	return result;
 }
@@ -1032,7 +1066,7 @@ static bool hash_all_partial_matches(struct selabel_handle *rec, const char *key
 	assert(digest);
 
 	size_t total_matches;
-	const struct spec **matches = lookup_all(rec, key, 0, true, &total_matches);
+	struct spec **matches = lookup_all(rec, key, 0, true, &total_matches);
 	if (!matches) {
 		return false;
 	}
@@ -1220,9 +1254,15 @@ static void stats(struct selabel_handle *rec)
 	struct saved_data *data = (struct saved_data *)rec->data;
 	unsigned int i, nspec = data->nspec;
 	struct spec *spec_arr = data->spec_arr;
+	bool any_matches;
 
 	for (i = 0; i < nspec; i++) {
-		if (spec_arr[i].matches == 0) {
+#ifdef __ATOMIC_RELAXED
+		any_matches = __atomic_load_n(&spec_arr[i].any_matches, __ATOMIC_RELAXED);
+#else
+#error "Please use a compiler that supports __atomic builtins"
+#endif
+		if (!any_matches) {
 			if (spec_arr[i].type_str) {
 				COMPAT_LOG(SELINUX_WARNING,
 				    "Warning!  No matches for (%s, %s, %s)\n",

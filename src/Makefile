@@ -98,7 +98,6 @@ override LDFLAGS += -L/opt/local/lib -undefined dynamic_lookup
 LD_SONAME_FLAGS=-install_name,$(LIBSO)
 endif
 
-PCRE_LDLIBS ?= -lpcre
 # override with -lfts when building on Musl libc to use fts-standalone
 FTS_LDLIBS ?=
 
@@ -122,8 +121,16 @@ SRCS= callbacks.c freecon.c label.c label_file.c \
 	label_backends_android.c regex.c label_support.c \
 	matchpathcon.c setrans_client.c sha1.c booleans.c
 else
-DISABLE_FLAGS+= -DNO_ANDROID_BACKEND
+LABEL_BACKEND_ANDROID=y
+endif
+
+ifneq ($(LABEL_BACKEND_ANDROIDT),y)
 SRCS:= $(filter-out label_backends_android.c, $(SRCS))
+DISABLE_FLAGS+= -DNO_ANDROID_BACKEND
+endif
+
+ifeq ($(DISABLE_X11),y)
+SRCS:= $(filter-out label_x.c, $(SRCS))
 endif
 
 SWIGRUBY = swig -Wall -ruby -o $(SWIGRUBYCOUT) -outdir ./ $(DISABLE_FLAGS)

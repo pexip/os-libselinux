@@ -7,12 +7,12 @@ Maintainer: Pexip AS <packaging@pexip.com>
 XSBC-Pexip-Original-Maintainer: Debian SELinux maintainers <selinux-devel@lists.alioth.debian.org>
 XSBC-Pexip-Original-Uploaders: Laurent Bigonville <bigon@debian.org>,
            Russell Coker <russell@coker.com.au>
-Standards-Version: 4.5.1
+Standards-Version: 4.6.0
 Build-Depends: debhelper-compat (= 13),
                dh-python <!nopython>,
                file,
-               gem2deb (>= 0.5.0~) <!noruby>,
-               libsepol1-dev (>= 3.1),
+               gem2deb <!noruby>,
+               libsepol-dev (>= 3.4),
                libpcre2-dev,
                pkg-config,
                python3-all-dev <!nopython>,
@@ -63,7 +63,7 @@ Description: SELinux runtime shared libraries
 Package: libselinux1-dev
 Architecture: linux-any
 Depends: libselinux1 (= ${binary:Version}),
-         libsepol1-dev (>= 3.1),
+         libsepol-dev (>= 3.4),
          libpcre2-dev,
          ${misc:Depends}
 Section: libdevel
