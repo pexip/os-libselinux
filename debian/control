@@ -6,18 +6,21 @@ Section: libs
 Maintainer: Debian SELinux maintainers <selinux-devel@lists.alioth.debian.org>
 Uploaders: Laurent Bigonville <bigon@debian.org>,
            Russell Coker <russell@coker.com.au>
-Standards-Version: 4.6.0
+Standards-Version: 4.6.2
 Build-Depends: debhelper-compat (= 13),
-               dh-python <!nopython>,
+               dh-sequence-python3 <!nopython>,
+               dh-sequence-ruby <!noruby>,
                file,
-               gem2deb <!noruby>,
-               libsepol-dev (>= 3.4),
+               libsepol-dev (>= 3.8.1),
                libpcre2-dev,
+               libpython3-all-dev <!nopython>,
                pkg-config,
-               python3-all-dev <!nopython>,
+               python3-all-dev:any <!nopython>,
+               python3-pip <!nopython>,
+               python3-setuptools <!nopython>,
                swig <!nopython> <!noruby>
 XS-Ruby-Versions: all
-Homepage: https://selinuxproject.org
+Homepage: https://github.com/SELinuxProject
 Rules-Requires-Root: no
 
 Package: selinux-utils
@@ -61,7 +64,7 @@ Description: SELinux runtime shared libraries
 Package: libselinux1-dev
 Architecture: linux-any
 Depends: libselinux1 (= ${binary:Version}),
-         libsepol-dev (>= 3.4),
+         libsepol-dev (>= 3.8.1),
          libpcre2-dev,
          ${misc:Depends}
 Section: libdevel
@@ -84,6 +87,7 @@ Package: libselinux1-udeb
 Architecture: linux-any
 Section: debian-installer
 Package-Type: udeb
+Build-Profiles: <!noudeb>
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: SELinux runtime shared libraries
@@ -105,7 +109,7 @@ Description: SELinux runtime shared libraries
 
 Package: ruby-selinux
 Architecture: linux-any
-Depends: ruby | ruby-interpreter, ${misc:Depends}, ${shlibs:Depends}
+Depends: ${ruby:Depends}, ${misc:Depends}, ${shlibs:Depends}
 Section: ruby
 Multi-Arch: same
 Build-Profiles: <!noruby>

@@ -38,7 +38,13 @@ int security_compute_user_raw(const char * scon,
 		ret = -1;
 		goto out;
 	}
-	snprintf(buf, size, "%s %s", scon, user);
+
+	ret = snprintf(buf, size, "%s %s", scon, user);
+	if (ret < 0 || (size_t)ret >= size) {
+		errno = EOVERFLOW;
+		ret = -1;
+		goto out2;
+	}
 
 	ret = write(fd, buf, strlen(buf));
 	if (ret < 0)
@@ -90,7 +96,9 @@ int security_compute_user(const char * scon,
 	if (selinux_trans_to_raw_context(scon, &rscon))
 		return -1;
 
+	IGNORE_DEPRECATED_DECLARATION_BEGIN
 	ret = security_compute_user_raw(rscon, user, con);
+	IGNORE_DEPRECATED_DECLARATION_END
 
 	freecon(rscon);
 	if (!ret) {

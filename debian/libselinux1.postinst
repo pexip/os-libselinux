@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = configure ] && dpkg --compare-versions "$2"  lt 3.8-2 ; then
+# delete old file_contexts bin files
+  rm -f /etc/selinux/default/contexts/files/*.bin
+fi
+
+#DEBHELPER#
