@@ -11,7 +11,7 @@
 //  Modified to:
 //    - stop symbols being exported for libselinux shared library - October 2015
 //								       Richard Haines <richard_c_haines@btinternet.com>
-//    - Not cast the workspace from a byte array to a CHAR64LONG16 due to alignment isses.
+//    - Not cast the workspace from a byte array to a CHAR64LONG16 due to alignment issues.
 //      Fixes:
 //        sha1.c:73:33: error: cast from 'uint8_t *' (aka 'unsigned char *') to 'CHAR64LONG16 *' increases required alignment from 1 to 4 [-Werror,-Wcast-align]
 //             CHAR64LONG16*       block = (CHAR64LONG16*) workspace;
@@ -25,6 +25,8 @@
 
 #include "sha1.h"
 #include <memory.h>
+
+#include "selinux_internal.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  TYPES
@@ -62,6 +64,7 @@ typedef union
 //
 //  Hash a single 512-bit block. This is the core of the algorithm
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+ignore_unsigned_overflow_
 static
 void
     TransformFunction
