@@ -91,7 +91,7 @@ static int process_line(struct selabel_handle *rec,
 	unsigned int nspec = data->nspec;
 	const char *errbuf = NULL;
 
-	items = read_spec_entries(line_buf, &errbuf, 2, &prop, &context);
+	items = read_spec_entries(line_buf, strlen(line_buf), &errbuf, 2, &prop, &context);
 	if (items < 0) {
 		if (errbuf) {
 			selinux_log(SELINUX_ERROR,
@@ -126,7 +126,7 @@ static int process_line(struct selabel_handle *rec,
 		spec_arr[nspec].lr.ctx_raw = context;
 
 		if (rec->validating) {
-			if (selabel_validate(rec, &spec_arr[nspec].lr) < 0) {
+			if (selabel_validate(&spec_arr[nspec].lr) < 0) {
 				selinux_log(SELINUX_ERROR,
 					    "%s:  line %u has invalid context %s\n",
 					    path, lineno, spec_arr[nspec].lr.ctx_raw);
@@ -152,12 +152,21 @@ static int init(struct selabel_handle *rec, const struct selinux_opt *opts,
 	struct stat sb;
 
 	/* Process arguments */
-	while (n--)
+	while (n) {
+		n--;
 		switch (opts[n].type) {
 		case SELABEL_OPT_PATH:
 			path = opts[n].value;
 			break;
+		case SELABEL_OPT_UNUSED:
+		case SELABEL_OPT_VALIDATE:
+		case SELABEL_OPT_DIGEST:
+			break;
+		default:
+			errno = EINVAL;
+			return -1;
 		}
+	}
 
 	if (!path)
 		return -1;
@@ -208,7 +217,10 @@ static int init(struct selabel_handle *rec, const struct selinux_opt *opts,
 				goto finish;
 
 			maxnspec = data->nspec;
-			rewind(fp);
+
+			status = fseek(fp, 0L, SEEK_SET);
+			if (status == -1)
+				goto finish;
 		}
 	}
 
@@ -234,6 +246,9 @@ static void closef(struct selabel_handle *rec)
 	struct spec *spec;
 	unsigned int i;
 
+	if (!data)
+		return;
+
 	for (i = 0; i < data->nspec; i++) {
 		spec = &data->spec_arr[i];
 		free(spec->property_key);
@@ -245,6 +260,7 @@ static void closef(struct selabel_handle *rec)
 		free(data->spec_arr);
 
 	free(data);
+	rec->data = NULL;
 }
 
 static struct selabel_lookup_rec *property_lookup(struct selabel_handle *rec,

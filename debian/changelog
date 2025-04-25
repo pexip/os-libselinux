@@ -1,3 +1,128 @@
+libselinux (3.8.1-1) unstable; urgency=medium
+
+  * New upstream release, just change version number Closes: #1099888
+  * Simplified dealing with file_contexts bin files by just rming them
+    Closes: #1099890
+
+ -- Russell Coker <russell@coker.com.au>  Sun, 16 Mar 2025 18:02:09 +1100
+
+libselinux (3.8-4) unstable; urgency=medium
+
+  * Fix the postinst to not use things that aren't installed Closes: #1098785
+    Closes: #1098827
+  * Added patch for x32 support thanks Bryon Roche Closes: #1098481
+
+ -- Russell Coker <russell@coker.com.au>  Tue, 25 Feb 2025 17:27:42 +1100
+
+libselinux (3.8-3) unstable; urgency=medium
+
+  * Made the postinst work in the case where the fcontext was already
+    correctly compiled
+
+ -- Russell Coker <russell@coker.com.au>  Wed, 12 Feb 2025 20:54:13 +1100
+
+libselinux (3.8-2) unstable; urgency=medium
+
+  * Changed the libsepol-dev build depends to version 3.8
+  * Run "semodule -B" after an upgrade from previous versions because of
+    changes to the compiled fcontext format
+
+ -- Russell Coker <russell@coker.com.au>  Tue, 11 Feb 2025 18:41:36 +1100
+
+libselinux (3.8-1) unstable; urgency=medium
+
+  * Added man page cleanups from Bjarni Ingi Gislason:
+    getcon(3) Closes: #1094854 getexeccon(3) Closes: #1094856
+    get_ordered_context_list(3) Closes: #1094861
+    getseuserbyname(3) Closes: #1094865 init_selinuxmnt(3) Closes: #1094886
+    is_selinux_enabled(3) Closes: #1094888 matchpathcon(3) Closes: #1095045
+    matchpathcon_checkmatches(3) Closes: #1095046
+  * Removed patches for the selabel_open() SEGV and the SWIG support as they
+    were merged upstream
+
+ -- Russell Coker <russell@coker.com.au>  Thu, 06 Feb 2025 15:01:30 +1100
+
+libselinux (3.7-4) unstable; urgency=medium
+
+  * Merged NMU
+  * Take a patch from git to fix a SEGV on selabel_open() on systems with
+    SELinux disabled Closes: #1079254
+  * Change rules to build on musl-linux-any and possibly other 32bit platforms
+    Closes: #1087016
+
+ -- Russell Coker <russell@coker.com.au>  Sat, 11 Jan 2025 17:22:18 +1100
+
+libselinux (3.7-3.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * debian/patches: Apply upstream patch to fix build with swig 4.3.0 (Closes:
+    #1091131).
+    Thanks to Alex Murray
+
+ -- Sebastian Ramacher <sramacher@debian.org>  Sat, 25 Jan 2025 09:51:31 +0100
+
+libselinux (3.7-3) unstable; urgency=medium
+
+  * Reverted the rename of libselinux1-dev to libselinux-dev.
+    Will do this again when the t64 change goes in.
+
+ -- Russell Coker <russell@coker.com.au>  Fri, 30 Aug 2024 12:55:29 +1000
+
+libselinux (3.7-2) unstable; urgency=medium
+
+  * Merged patch from Helmut Grohne to rename libselinux1-dev to
+    libselinux-dev.
+  * Change src/selinux_config.c, user_contexts.5, and sefcontext_compile.8 to
+    refer to "default" instead of "targeted".  Closes: #1012756
+  * Add patch for reproducable build of python3-selinux, thanks James Addison
+    Closes: #1064894
+
+ -- Russell Coker <russell@coker.com.au>  Sun, 25 Aug 2024 14:01:03 +1000
+
+libselinux (3.7-1) unstable; urgency=medium
+
+  * New upstream release
+  * Removed the ru man directory
+  * Added rm of utils/getpolicyload in clean target
+  * Changed the homepage to https://github.com/SELinuxProject
+  * Added extra upstream signing key for Petr Lautrbach
+
+ -- Russell Coker <russell@coker.com.au>  Tue, 06 Aug 2024 22:31:38 +1000
+
+libselinux (3.5-2) unstable; urgency=medium
+
+  [ Michael Biebl ]
+  * Move libselinux into /usr (Closes: #914247)
+
+  [ Laurent Bigonville ]
+  * debian/libselinux1.tmpfiles: claim /run/setrans directory.
+    Thanks to Christian Göttsche, Michael Biebl (Closes: #1029095)
+
+ -- Laurent Bigonville <bigon@debian.org>  Wed, 24 Jan 2024 21:23:37 +0100
+
+libselinux (3.5-1) unstable; urgency=medium
+
+  [ Laurent Bigonville ]
+  * New upstream release
+    - debian/control: Add python3-setuptools and python3-pip to the BD
+    - Bump libsepol-dev (build-)dependency to >= 3.5 to match the release
+    - debian/libselinux1.symbols: Add newly exported symbols
+  * debian/upstream/signing-key.asc: Add public key of Jason Zaman
+  * debian/rules: Properly set the install layout for the python module
+  * debian/control: Bump Standards-Version to 4.6.2 (no further changes)
+  * debian/control: Drop dependency against ruby | ruby-interpreter, to please
+    lintian
+
+  [ Helmut Grohne ]
+  * Fix FTCBFS: Support cross building python and ruby extensions.
+    (Closes: #1022964)
+  * Support the noudeb build profile. (Closes: #1024948)
+
+  [ Bastian Germann ]
+  * Fix "Inaccurate copyright file" (Closes: #1031678)
+
+ -- Laurent Bigonville <bigon@debian.org>  Sun, 09 Jul 2023 23:50:22 +0200
+
 libselinux (3.4-1+pexip24u3) pexip-bookworm; urgency=medium
 
   * New versioning scheme

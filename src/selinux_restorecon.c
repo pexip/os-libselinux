@@ -175,8 +175,7 @@ static int add_exclude(const char *directory, bool who)
 		return -1;
 	}
 
-	tmp_list = realloc(exclude_lst,
-			   sizeof(struct edir) * (exclude_count + 1));
+	tmp_list = reallocarray(exclude_lst, exclude_count + 1, sizeof(struct edir));
 	if (!tmp_list)
 		goto oom;
 
@@ -244,7 +243,7 @@ static uint64_t exclude_non_seclabel_mounts(void)
 	int index = 0, found = 0;
 	uint64_t nfile = 0;
 	char *mount_info[4];
-	char *buf = NULL, *item;
+	char *buf = NULL, *item, *saveptr;
 
 	/* Check to see if the kernel supports seclabel */
 	if (uname(&uts) == 0 && strverscmp(uts.release, "2.6.30") < 0)
@@ -259,13 +258,14 @@ static uint64_t exclude_non_seclabel_mounts(void)
 	while (getline(&buf, &len, fp) != -1) {
 		found = 0;
 		index = 0;
-		item = strtok(buf, " ");
+		saveptr = NULL;
+		item = strtok_r(buf, " ", &saveptr);
 		while (item != NULL) {
 			mount_info[index] = item;
 			index++;
 			if (index == 4)
 				break;
-			item = strtok(NULL, " ");
+			item = strtok_r(NULL, " ", &saveptr);
 		}
 		if (index < 4) {
 			selinux_log(SELINUX_ERROR,
@@ -277,14 +277,15 @@ static uint64_t exclude_non_seclabel_mounts(void)
 		/* Remove pre-existing entry */
 		remove_exclude(mount_info[1]);
 
-		item = strtok(mount_info[3], ",");
+		saveptr = NULL;
+		item = strtok_r(mount_info[3], ",", &saveptr);
 		while (item != NULL) {
 			if (strcmp(item, "seclabel") == 0) {
 				found = 1;
 				nfile += file_system_count(mount_info[1]);
 				break;
 			}
-			item = strtok(NULL, ",");
+			item = strtok_r(NULL, ",", &saveptr);
 		}
 
 		/* Exclude mount points without the seclabel option */
@@ -432,10 +433,11 @@ static pthread_mutex_t fl_mutex = PTHREAD_MUTEX_INITIALIZER;
  * that matched.
  */
 static int filespec_add(ino_t ino, const char *con, const char *file,
-			struct rest_flags *flags)
+			const struct rest_flags *flags)
 {
 	file_spec_t *prevfl, *fl;
-	int h, ret;
+	uint32_t h;
+	int ret;
 	struct stat64 sb;
 
 	__pthread_mutex_lock(&fl_mutex);
@@ -524,7 +526,8 @@ unlock_1:
 static void filespec_eval(void)
 {
 	file_spec_t *fl;
-	int h, used, nel, len, longest;
+	uint32_t h;
+	size_t used, nel, len, longest;
 
 	if (!fl_head)
 		return;
@@ -544,7 +547,7 @@ static void filespec_eval(void)
 	}
 
 	selinux_log(SELINUX_INFO,
-		     "filespec hash table stats: %d elements, %d/%d buckets used, longest chain length %d\n",
+		     "filespec hash table stats: %zu elements, %zu/%zu buckets used, longest chain length %zu\n",
 		     nel, used, HASH_BUCKETS, longest);
 }
 #else
@@ -559,7 +562,7 @@ static void filespec_eval(void)
 static void filespec_destroy(void)
 {
 	file_spec_t *fl, *tmp;
-	int h;
+	uint32_t h;
 
 	if (!fl_head)
 		return;
@@ -623,16 +626,14 @@ out:
 	return rc;
 }
 
-static int restorecon_sb(const char *pathname, struct rest_flags *flags, bool first)
+static int restorecon_sb(const char *pathname, const struct stat *sb,
+			    const struct rest_flags *flags, bool first)
 {
 	char *newcon = NULL;
 	char *curcon = NULL;
 	char *newtypecon = NULL;
-	int fd = -1, rc;
-	struct stat stat_buf;
-	bool updated = false;
+	int rc;
 	const char *lookup_path = pathname;
-	float pc;
 
 	if (rootpath) {
 		if (strncmp(rootpath, lookup_path, rootpathlen) != 0) {
@@ -644,21 +645,13 @@ static int restorecon_sb(const char *pathname, struct rest_flags *flags, bool fi
 		lookup_path += rootpathlen;
 	}
 
-	fd = open(pathname, O_PATH | O_NOFOLLOW | O_EXCL);
-	if (fd < 0)
-		goto err;
-
-	rc = fstat(fd, &stat_buf);
-	if (rc < 0)
-		goto err;
-
 	if (rootpath != NULL && lookup_path[0] == '\0')
 		/* this is actually the root dir of the alt root. */
 		rc = selabel_lookup_raw(fc_sehandle, &newcon, "/",
-						    stat_buf.st_mode);
+						    sb->st_mode & S_IFMT);
 	else
 		rc = selabel_lookup_raw(fc_sehandle, &newcon, lookup_path,
-						    stat_buf.st_mode);
+						    sb->st_mode & S_IFMT);
 
 	if (rc < 0) {
 		if (errno == ENOENT) {
@@ -667,10 +660,10 @@ static int restorecon_sb(const char *pathname, struct rest_flags *flags, bool fi
 					    "Warning no default label for %s\n",
 					    lookup_path);
 
-			goto out; /* no match, but not an error */
+			return 0; /* no match, but not an error */
 		}
 
-		goto err;
+		return -1;
 	}
 
 	if (flags->progress) {
@@ -678,7 +671,7 @@ static int restorecon_sb(const char *pathname, struct rest_flags *flags, bool fi
 		fc_count++;
 		if (fc_count % STAR_COUNT == 0) {
 			if (flags->mass_relabel && efile_count > 0) {
-				pc = (fc_count < efile_count) ? (100.0 *
+				float pc = (fc_count < efile_count) ? (100.0 *
 					     fc_count / efile_count) : 100;
 				fprintf(stdout, "\r%-.1f%%", (double)pc);
 			} else {
@@ -690,17 +683,19 @@ static int restorecon_sb(const char *pathname, struct rest_flags *flags, bool fi
 	}
 
 	if (flags->add_assoc) {
-		rc = filespec_add(stat_buf.st_ino, newcon, pathname, flags);
+		rc = filespec_add(sb->st_ino, newcon, pathname, flags);
 
 		if (rc < 0) {
 			selinux_log(SELINUX_ERROR,
 				    "filespec_add error: %s\n", pathname);
-			goto out1;
+			freecon(newcon);
+			return -1;
 		}
 
 		if (rc > 0) {
 			/* Already an association and it took precedence. */
-			goto out;
+			freecon(newcon);
+			return 0;
 		}
 	}
 
@@ -708,7 +703,7 @@ static int restorecon_sb(const char *pathname, struct rest_flags *flags, bool fi
 		selinux_log(SELINUX_INFO, "%s matched by %s\n",
 			    pathname, newcon);
 
-	if (fgetfilecon_raw(fd, &curcon) < 0) {
+	if (lgetfilecon_raw(pathname, &curcon) < 0) {
 		if (errno != ENODATA)
 			goto err;
 
@@ -716,6 +711,8 @@ static int restorecon_sb(const char *pathname, struct rest_flags *flags, bool fi
 	}
 
 	if (curcon == NULL || strcmp(curcon, newcon) != 0) {
+		bool updated = false;
+
 		if (!flags->set_specctx && curcon &&
 				    (is_context_customizable(curcon) > 0)) {
 			if (flags->verbose) {
@@ -741,7 +738,7 @@ static int restorecon_sb(const char *pathname, struct rest_flags *flags, bool fi
 		}
 
 		if (!flags->nochange) {
-			if (fsetfilecon(fd, newcon) < 0)
+			if (lsetfilecon(pathname, newcon) < 0)
 				goto err;
 			updated = true;
 		}
@@ -750,7 +747,9 @@ static int restorecon_sb(const char *pathname, struct rest_flags *flags, bool fi
 			selinux_log(SELINUX_INFO,
 				    "%s %s from %s to %s\n",
 				    updated ? "Relabeled" : "Would relabel",
-				    pathname, curcon, newcon);
+				    pathname,
+				    curcon ? curcon : "<no context>",
+				    newcon);
 
 		if (flags->syslog_changes && !flags->nochange) {
 			if (curcon)
@@ -766,8 +765,6 @@ static int restorecon_sb(const char *pathname, struct rest_flags *flags, bool fi
 out:
 	rc = 0;
 out1:
-	if (fd >= 0)
-		close(fd);
 	freecon(curcon);
 	freecon(newcon);
 	return rc;
@@ -865,6 +862,7 @@ static void *selinux_restorecon_thread(void *arg)
 	FTSENT *ftsent;
 	int error;
 	char ent_path[PATH_MAX];
+	struct stat ent_st;
 	bool first = false;
 
 	if (state->parallel)
@@ -961,12 +959,21 @@ loop_body:
 			}
 			/* fall through */
 		default:
-			strcpy(ent_path, ftsent->fts_path);
+			if (strlcpy(ent_path, ftsent->fts_path, sizeof(ent_path)) >= sizeof(ent_path)) {
+				selinux_log(SELINUX_ERROR,
+					    "Path name too long on %s.\n",
+					    ftsent->fts_path);
+				errno = ENAMETOOLONG;
+				state->error = -1;
+				state->abort = true;
+				goto finish;
+			}
 
+			ent_st = *ftsent->fts_statp;
 			if (state->parallel)
 				pthread_mutex_unlock(&state->mutex);
 
-			error = restorecon_sb(ent_path, &state->flags,
+			error = restorecon_sb(ent_path, &ent_st, &state->flags,
 					      first);
 
 			if (state->parallel) {
@@ -1104,6 +1111,10 @@ static int selinux_restorecon_common(const char *pathname_orig,
 			pathname = realpath(pathname_orig, NULL);
 			if (!pathname) {
 				free(basename_cpy);
+				/* missing parent directory */
+				if (state.flags.ignore_noent && errno == ENOENT) {
+					return 0;
+				}
 				goto realpatherr;
 			}
 		} else {
@@ -1117,6 +1128,9 @@ static int selinux_restorecon_common(const char *pathname_orig,
 			free(dirname_cpy);
 			if (!pathdnamer) {
 				free(basename_cpy);
+				if (state.flags.ignore_noent && errno == ENOENT) {
+					return 0;
+				}
 				goto realpatherr;
 			}
 			if (!strcmp(pathdnamer, "/"))
@@ -1162,7 +1176,7 @@ static int selinux_restorecon_common(const char *pathname_orig,
 			goto cleanup;
 		}
 
-		error = restorecon_sb(pathname, &state.flags, true);
+		error = restorecon_sb(pathname, &sb, &state.flags, true);
 		goto cleanup;
 	}
 
@@ -1177,8 +1191,8 @@ static int selinux_restorecon_common(const char *pathname_orig,
 	}
 
 	/* Skip digest on in-memory filesystems and /sys */
-	if (state.sfsb.f_type == RAMFS_MAGIC || state.sfsb.f_type == TMPFS_MAGIC ||
-	    state.sfsb.f_type == SYSFS_MAGIC)
+	if ((uint32_t)state.sfsb.f_type == (uint32_t)RAMFS_MAGIC ||
+		state.sfsb.f_type == TMPFS_MAGIC || state.sfsb.f_type == SYSFS_MAGIC)
 		state.setrestorecondigest = false;
 
 	if (state.flags.set_xdev)
@@ -1353,6 +1367,10 @@ void selinux_restorecon_set_sehandle(struct selabel_handle *hndl)
 	unsigned char *fc_digest;
 	size_t num_specfiles, fc_digest_len;
 
+	if (fc_sehandle) {
+		selabel_close(fc_sehandle);
+	}
+
 	fc_sehandle = hndl;
 	if (!fc_sehandle)
 		return;
@@ -1476,7 +1494,7 @@ int selinux_restorecon_xattr(const char *pathname, unsigned int xattr_flags,
 
 	if (!recurse) {
 		if (statfs(pathname, &sfsb) == 0) {
-			if (sfsb.f_type == RAMFS_MAGIC ||
+			if ((uint32_t)sfsb.f_type == (uint32_t)RAMFS_MAGIC ||
 			    sfsb.f_type == TMPFS_MAGIC)
 				return 0;
 		}
@@ -1511,7 +1529,7 @@ int selinux_restorecon_xattr(const char *pathname, unsigned int xattr_flags,
 			continue;
 		case FTS_D:
 			if (statfs(ftsent->fts_path, &sfsb) == 0) {
-				if (sfsb.f_type == RAMFS_MAGIC ||
+				if ((uint32_t)sfsb.f_type == (uint32_t)RAMFS_MAGIC ||
 				    sfsb.f_type == TMPFS_MAGIC)
 					continue;
 			}

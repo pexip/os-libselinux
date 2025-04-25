@@ -10,6 +10,13 @@ include /usr/share/dpkg/architecture.mk
 ifneq ($(DEB_HOST_GNU_TYPE),$(DEB_BUILD_GNU_TYPE))
 export CC := $(DEB_HOST_GNU_TYPE)-gcc
 export PKG_CONFIG := $(DEB_HOST_GNU_TYPE)-pkg-config
+export _PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata__$(DEB_HOST_MULTIARCH)
+define ruby_env
+  RUBYLIB=/usr/lib/$(DEB_HOST_MULTIARCH)/ruby-crossbuild/$$($(1) -e "puts RbConfig::CONFIG['ruby_version']")
+endef
+else
+define ruby_env
+endef
 endif
 
 ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
@@ -21,24 +28,26 @@ DOPACKAGES = $(shell dh_listpackages)
 
 BUILT_USING=$(shell dpkg-query -f '$${source:Package} (= $${source:Version}), ' -W "libsepol-dev")
 
+ifeq ($(DEB_HOST_ARCH_BITS),32)
+# Use of lstat64 requires this macro.
+export DEB_CPPFLAGS_MAINT_APPEND += -D_LARGEFILE64_SOURCE
+endif
+
 # Upstream recommends using this flag
 export DEB_CFLAGS_MAINT_APPEND = -fno-semantic-interposition
 ## The build system doesn't use CPPFLAGS, pass them to CFLAGS to enable the
 ## missing (hardening) flags. Also enable Wall and Wextra to spot basic irregularities.
 export DEB_CFLAGS_MAINT_APPEND += $(shell dpkg-buildflags --get CPPFLAGS) -Wall -Wextra
 
-DH_ADDONS =
 ifneq ($(filter python3-selinux,$(DOPACKAGES)),)
 PY3VERSIONS = $(shell py3versions -rv)
-DH_ADDONS += --with=python3
 endif
 ifneq ($(filter ruby-selinux,$(DOPACKAGES)),)
 RUBY_VERSIONS := $(shell dh_ruby --print-supported)
-DH_ADDONS += --with=ruby
 endif
 
 %:
-	@dh $@ $(DH_ADDONS)
+	@dh $@
 
 ## Set up some variables to be passed to the upstream Makefile
 extra_make_args = ARCH=$(patsubst i%86,i386,$(DEB_HOST_GNU_CPU))
@@ -52,6 +61,7 @@ ifneq ($(filter python3-selinux,$(DOPACKAGES)),)
 endif
 ifneq ($(filter ruby-selinux,$(DOPACKAGES)),)
 	set -e; for version in $(RUBY_VERSIONS); do      \
+	  $(call ruby_env,$$version) \
 	  $(MAKE) rubywrap $(extra_make_args) RUBY=$$version; \
 	done;
 endif
@@ -59,19 +69,23 @@ endif
 override_dh_auto_install:
 	$(MAKE) install $(extra_make_args) DESTDIR="${CURDIR}/debian/tmp" \
 	  LIBDIR=/usr/lib/$(DEB_HOST_MULTIARCH) \
-	  SHLIBDIR=/lib/$(DEB_HOST_MULTIARCH)
+	  SHLIBDIR=/usr/lib/$(DEB_HOST_MULTIARCH)
 ifneq ($(filter python3-selinux,$(DOPACKAGES)),)
 	set -e; for version in $(PY3VERSIONS); do \
-	  $(MAKE) install-pywrap $(extra_make_args) PYTHON=python$$version DESTDIR="${CURDIR}/debian/tmp" PYTHON_SETUP_ARGS=--install-layout=deb; \
+	  $(MAKE) install-pywrap $(extra_make_args) PYTHON=python$$version DESTDIR="${CURDIR}/debian/tmp" DEB_PYTHON_INSTALL_LAYOUT=deb; \
 	done;
+	find "${CURDIR}/debian/tmp" -name direct_url.json -delete ;
+	find "${CURDIR}/debian/tmp" -name RECORD -exec sed -i '/\/direct_url.json,/d' {} + ;
 endif
 ifneq ($(filter ruby-selinux,$(DOPACKAGES)),)
 	set -e; for version in $(RUBY_VERSIONS); do \
+	  $(call ruby_env,$$version) \
 	  $(MAKE) install-rubywrap $(extra_make_args) RUBY=$$version DESTDIR="${CURDIR}/debian/tmp"; \
 	done;
 endif
 
 override_dh_auto_clean:
+	rm -f utils/getpolicyload
 	$(MAKE) distclean $(extra_make_args) PYTHON=true
 ifneq ($(filter python3-selinux,$(DOPACKAGES)),)
 	set -e; for version in $(PY3VERSIONS); do         \
@@ -80,6 +94,7 @@ ifneq ($(filter python3-selinux,$(DOPACKAGES)),)
 endif
 ifneq ($(filter ruby-selinux,$(DOPACKAGES)),)
 	set -e; for version in $(RUBY_VERSIONS); do      \
+	  $(call ruby_env,$$version) \
 	  $(MAKE) clean-rubywrap $(extra_make_args) RUBY=$$version; \
 	done;
 endif
